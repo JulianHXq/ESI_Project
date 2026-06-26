@@ -542,7 +542,7 @@ def load_environment(input_dir=DATA_DIR):
 
     if not student_file.exists() or not parameter_file.exists():
         raise FileNotFoundError(
-            "Generated DGP files were not found. Run `python DGP.py` first."
+            "Generated DGP files were not found. Run `python DGP_v5.py` first."
         )
 
     df = pd.read_csv(student_file)
@@ -555,7 +555,7 @@ def load_environment(input_dir=DATA_DIR):
 
     if len(raw_files) == 0 or len(G_files) == 0:
         raise FileNotFoundError(
-            "Network files were not found. Run `python DGP.py` first."
+            "Network files were not found. Run `python DGP_v5.py` first."
         )
 
     raw_G_list = [sparse.load_npz(path).tocsr() for path in raw_files]

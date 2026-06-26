@@ -1,13 +1,13 @@
 """
-Figures for Project Replication Zenou -- v2.
+Figures for Project Replication Zenou -- v5.
 
 Run this after generating data and (optionally) estimating:
 
-    python DGP.py
-    python Estimation.py
-    python Figures.py
+    python DGP_v5.py
+    python Estimation_v5.py
+    python Figures_v5.py
 
-Produces diagnostic and presentation figures in the `figures/` folder.
+Produces diagnostic and presentation figures in the `figures_v5/` folder.
 Plot titles follow Title Case (connectors stay lowercase).
 """
 
@@ -447,9 +447,6 @@ def main():
           "fig_monte_carlo, and identification_frontier -> fig_identification_frontier)")
 
 
-if __name__ == "__main__":
-    main()
-
 
 def fig_cue_vs_two_step(mc_df):  # [v3]
     """Two-step vs CUE: bias and 95% coverage per parameter, side by side.
@@ -478,3 +475,7 @@ def fig_cue_vs_two_step(mc_df):  # [v3]
                  fontsize=13, fontweight="bold", color=INK, y=1.02)
     fig.tight_layout(); fig.savefig(FIG_DIR / "fig13_cue_vs_two_step.png", bbox_inches="tight")
     plt.close(fig)
+
+
+if __name__ == "__main__":
+    main()

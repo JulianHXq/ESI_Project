@@ -1,36 +1,30 @@
 """
-Run EVERYTHING for v3 in one command:
+Run EVERYTHING for v5 in one clean pass:
 
     python run_all_v5.py
 
-Pipeline:
-  1) Teaching walkthrough (two-step internals)        -> teaching_steps_v5.py
-  2) Data + CUE estimation (with two-step baseline)    -> rich console report
-  3) Figures and slide-style figures                   -> Figures_v5 / SlideFigures_v5
-
-The CUE outputs are saved last among the estimation steps, so the persisted
-estimation_results.json (used by the figures) reflects CUE.
-(Heavy extras fig10/fig12/fig13 stay manual: run monte_carlo_* / identification_frontier
- and the matching fig_* functions.)
+The data are generated ONCE and reused; nothing is printed or estimated twice.
+  1) DGP summary                                   (printed once)
+  2) Teaching walkthrough of the two-step internals (reuses the data)
+  3) CUE estimation + full report                   (the headline results)
+  4) Instrument-transformation comparison
+  5) Figures and slide-style figures
+(Heavy extras fig10/fig12/fig13 and the Monte Carlo / frontier stay manual.)
 """
-
-import os
-import runpy
 
 from DGP_v5 import DATA_DIR, build_environment, save_environment, summarize_environment
 from Estimation_v5 import (
     OUTPUT_DIR,
     comparison_table,
-    estimate_model_cue,      # [v3]
-    format_full_report,      # [v3]
-    compare_instrument_sets, # [v5]
-    format_instrument_comparison,  # [v5]
+    estimate_model_cue,
+    format_full_report,
+    compare_instrument_sets,
+    format_instrument_comparison,
     save_estimation_outputs,
 )
-import Figures_v5            # [v3] has main()
-import SlideFigures_v5       # [v3] has main()
-
-HERE = os.path.dirname(os.path.abspath(__file__))
+import Figures_v5
+import SlideFigures_v5
+import teaching_steps_v5
 
 
 def _banner(text):
@@ -38,35 +32,37 @@ def _banner(text):
 
 
 def main():
-    # 1) Teaching walkthrough. teaching_steps_v5 is a flat script, so we run it
-    #    with runpy. It saves a two-step JSON that step 2 then overwrites.
-    _banner("1/3  TEACHING WALKTHROUGH (two-step internals)")
-    runpy.run_path(os.path.join(HERE, "teaching_steps_v5.py"), run_name="__main__")
-
-    # 2) Data + CUE estimation (headline). CUE outputs persist.
-    _banner("2/3  FULL ESTIMATION (CUE, two-step baseline)")
+    # ---- 1) Generate the data ONCE and show the summary once ----
+    _banner("1/5  SYNTHETIC DATA")
     df, raw_G_list, G_list, true_parameters = build_environment()
     save_environment(df, raw_G_list, G_list, true_parameters, DATA_DIR)
     print(summarize_environment(df, G_list, true_parameters))
-    print()
+
+    # ---- 2) Teaching walkthrough on the SAME data (no rebuild / no re-summary / no save) ----
+    _banner("2/5  TEACHING WALKTHROUGH (two-step internals)")
+    teaching_steps_v5.main(env=(df, raw_G_list, G_list, true_parameters),
+                           save=False, show_summary=False)
+
+    # ---- 3) CUE estimation + full report (this is what persists to outputs_v5) ----
+    _banner("3/5  CUE ESTIMATION + FULL REPORT")
     results = estimate_model_cue(df, G_list)
     comparison = comparison_table(true_parameters, results)
     save_estimation_outputs(results, comparison, OUTPUT_DIR)
     print(format_full_report(true_parameters, results))
 
-    # [v5] instrument-transformation comparison (which instruments estimate worse)
-    _banner("EXTRA  INSTRUMENT TRANSFORMATIONS")
-    _itab = compare_instrument_sets(df, G_list)
-    print(format_instrument_comparison(_itab, true_beta=true_parameters["beta"]))
+    # ---- 4) Instrument-transformation comparison ----
+    _banner("4/5  INSTRUMENT TRANSFORMATIONS")
+    print(format_instrument_comparison(compare_instrument_sets(df, G_list),
+                                       true_beta=true_parameters["beta"]))
 
-    # 3) Figures (read the saved CUE data + JSON).
-    _banner("3/3  FIGURES")
+    # ---- 5) Figures ----
+    _banner("5/5  FIGURES")
     Figures_v5.main()
     SlideFigures_v5.main()
 
     print(f"\nAll done. Data: {DATA_DIR}")
     print(f"Outputs: {OUTPUT_DIR}")
-    print("Figures: figures_v5/  (fig1-9, fig11 + slide1-6)")
+    print("Figures: figures_v5/")
 
 
 if __name__ == "__main__":

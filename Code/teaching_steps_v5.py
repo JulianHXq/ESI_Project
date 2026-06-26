@@ -1,5 +1,5 @@
 """
-Line-by-line teaching script for Project Replication Zenou -- v2.
+Line-by-line teaching script for Project Replication Zenou -- v5.
 
 """
 
@@ -222,147 +222,96 @@ def assemble_results(context, first_step, second_step, W_I, W_N):
 
 
 # ============================================================
-# Step 1. Generate the synthetic data
+# Walkthrough driver
 # ============================================================
 
-df, raw_G_list, G_list, true_parameters = build_environment()
-save_environment(df, raw_G_list, G_list, true_parameters, DATA_DIR)
+def main(env=None, save=True, show_summary=True):
+    """Line-by-line walkthrough of the two-step estimator.
 
-print(summarize_environment(df, G_list, true_parameters))
+    [v5] Refactored into a function so run_all_v5 can call it on ALREADY-built
+    data (env=...), without regenerating, re-printing the DGP summary, or
+    re-saving. Run as a script it still builds its own environment.
+    """
+    # Step 1. Data (build only if not provided)
+    if env is None:
+        df, raw_G_list, G_list, true_parameters = build_environment()
+        if save:
+            save_environment(df, raw_G_list, G_list, true_parameters, DATA_DIR)
+    else:
+        df, raw_G_list, G_list, true_parameters = env
+    if show_summary:
+        print(summarize_environment(df, G_list, true_parameters))
 
+    # Step 2. Network summary (true parameters already shown by the summary above)
+    networks = network_summary(raw_G_list, G_list)
+    print()
+    print("Network summary")
+    print(networks.head())
 
-# If you do not want to regenerate data, comment out the block above and use:
-# df, raw_G_list, G_list, true_parameters = load_environment(DATA_DIR)
+    # Step 3. Reusable estimation objects
+    context = prepare_estimation_context(df, G_list)
+    print()
+    print("Prepared context")
+    print(context_summary(context))
+    print()
+    print("First-stage summary")
+    print(first_stage_summary(df, context))
 
+    # Step 4. Beta-dependent peer objects
+    beta_to_inspect = 10
+    data_beta = build_estimation_data(beta=beta_to_inspect, context=context)
+    print()
+    print("Beta-dependent peer objects")
+    print(beta_object_summary(beta_to_inspect, data_beta))
+    print()
+    print("Preview of peer objects")
+    print(beta_object_preview(df, data_beta, n=8))
 
-# ============================================================
-# Step 2. Inspect the generated environment
-# ============================================================
+    # Step 5. First-step GMM (identity weights)
+    first_step = estimate_with_weights(context=context, stage="first_step_identity")
+    print()
+    print("First-step estimates")
+    print(pd.Series(first_step["estimates"]))
 
-true = pd.Series(true_parameters, name="true")
-networks = network_summary(raw_G_list, G_list)
+    # Step 6. Update the GMM weighting matrices
+    lambda_1, beta_1, delta_1 = first_step["nonlinear_parameters"]
+    W_I, W_N = estimate_weight_matrices(
+        data=first_step["data"], gamma=first_step["gamma"],
+        lambda_value=lambda_1, delta_value=delta_1,
+    )
+    print()
+    print("Weight matrix summary")
+    weight_matrix_print(W_I, W_N)   # [v5] prints internally (no stray "None")
 
-print()
-print("True parameters")
-print(true)
+    # Step 7. Second-step GMM (updated weights)
+    second_step = estimate_with_weights(
+        context=context, W_I=W_I, W_N=W_N,
+        starting_values=[first_step["nonlinear_parameters"], *STARTING_VALUES],
+        stage="second_step_weighted",
+    )
+    print()
+    print("Second-step estimates")
+    print(pd.Series(second_step["estimates"]))
 
-print()
-print("Network summary")
-print(networks.head())
+    # Step 8. Cluster-robust standard errors
+    results = assemble_results(context, first_step, second_step, W_I, W_N)
+    results["cluster_robust_se"] = cluster_robust_standard_errors(context=context, results=results)
+    comparison = comparison_table(true_parameters, results)
+    final = final_estimation_table(true_parameters, results)
+    print()
+    print("True vs first-step vs second-step")
+    print(comparison)
+    print()
+    print("Final estimates with school-cluster robust SE")
+    print(final)
 
-
-# ============================================================
-# Step 3. Prepare reusable estimation objects
-# ============================================================
-
-context = prepare_estimation_context(df, G_list)
-
-print()
-print("Prepared context")
-print(context_summary(context))
-
-print()
-print("First-stage summary")
-print(first_stage_summary(df, context))
-
-
-# ============================================================
-# Step 4. Inspect beta-dependent peer objects
-# ============================================================
-
-beta_to_inspect = 10
-data_beta = build_estimation_data(beta=beta_to_inspect, context=context)
-
-print()
-print("Beta-dependent peer objects")
-print(beta_object_summary(beta_to_inspect, data_beta))
-
-print()
-print("Preview of peer objects")
-print(beta_object_preview(df, data_beta, n=8))
-
-
-# ============================================================
-# Step 5. First-step GMM with identity weights
-# ============================================================
-
-first_step = estimate_with_weights(
-    context=context,
-    stage="first_step_identity",
-)
-
-print()
-print("First-step estimates")
-print(pd.Series(first_step["estimates"]))
-
-
-# ============================================================
-# Step 6. Update the GMM weighting matrices
-# ============================================================
-
-lambda_1, beta_1, delta_1 = first_step["nonlinear_parameters"]
-
-W_I, W_N = estimate_weight_matrices(
-    data=first_step["data"],
-    gamma=first_step["gamma"],
-    lambda_value=lambda_1,
-    delta_value=delta_1,
-)
-
-print()
-print("Weight matrix summary")
-print(weight_matrix_print(W_I, W_N))
-
-
-# ============================================================
-# Step 7. Second-step GMM with updated weights
-# ============================================================
-
-second_starting_values = [
-    first_step["nonlinear_parameters"],
-    *STARTING_VALUES,
-]
-
-second_step = estimate_with_weights(
-    context=context,
-    W_I=W_I,
-    W_N=W_N,
-    starting_values=second_starting_values,
-    stage="second_step_weighted",
-)
-
-print()
-print("Second-step estimates")
-print(pd.Series(second_step["estimates"]))
+    # Step 9. Save (only when running standalone)
+    if save:
+        save_estimation_outputs(results, comparison, OUTPUT_DIR)
+        print()
+        print(f"Saved outputs to: {OUTPUT_DIR}")
+    return results
 
 
-# ============================================================
-# Step 8. Cluster-robust standard errors
-# ============================================================
-
-results = assemble_results(context, first_step, second_step, W_I, W_N)
-results["cluster_robust_se"] = cluster_robust_standard_errors(
-    context=context,
-    results=results,
-)
-
-comparison = comparison_table(true_parameters, results)
-final = final_estimation_table(true_parameters, results)
-
-print()
-print("True vs first-step vs second-step")
-print(comparison)
-
-print()
-print("Final estimates with school-cluster robust SE")
-print(final)
-
-
-# ============================================================
-# Step 9. Save outputs
-# ============================================================
-
-save_estimation_outputs(results, comparison, OUTPUT_DIR)
-
-print()
-print(f"Saved outputs to: {OUTPUT_DIR}")
+if __name__ == "__main__":
+    main()

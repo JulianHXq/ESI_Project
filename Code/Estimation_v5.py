@@ -543,7 +543,7 @@ def default_weight_matrices(context):
     Create the default first-step weighting matrices once.
 
     The isolated block has k moments. The non-isolated block has k covariate
-    moments plus Shat and Dhat, so it has k + 2 moments.
+    moments plus the active instruments, so it has k + _n_extra_cols() moments.
     """
     k = context["X"].shape[1]
     return identity_weights_for_covariates(k)
@@ -751,8 +751,6 @@ def school_cluster_moment_contributions(data, gamma, lambda_value, delta_value):
     y = data["y"]
     X = data["X"]
     S = data["S"]
-    Shat = data["Shat"]
-    Dhat = data["Dhat"]
     school_codes = data["school_codes"]
     schools = data["schools"]
     isolated = data["isolated"]
@@ -1662,9 +1660,9 @@ def format_full_report(true_parameters, results):  # [v3]
     n = results["n_observations"]
     A("\n[4] GMM objective and over-identification J-test (dof = 8 - 6 = 2)")
     if "two_step" in results:
-        q = results["two_step"]["estimates"]["objective"]; jt = overid_j_test(n, q)
+        q = results["two_step"]["estimates"]["objective"]; jt = overid_j_test(n, q, n_moments=2 * len(X_COLS) + _n_extra_cols())
         A(f"    two-step:  Q={q:.6f}  J=n*Q={jt['J']:.2f}  p={jt['p_value']:.3f}")
-    q = results["cue"]["estimates"]["objective"]; jc = overid_j_test(n, q)
+    q = results["cue"]["estimates"]["objective"]; jc = overid_j_test(n, q, n_moments=2 * len(X_COLS) + _n_extra_cols())
     A(f"    CUE:       Q={q:.6f}  J=n*Q={jc['J']:.2f}  p={jc['p_value']:.3f}")
     A("    (large J / small p -> the model's extra moments reject it)")
 
@@ -1716,32 +1714,34 @@ def compare_instrument_sets(df, G_list, sets=None):  # [v5]
         }
     saved = list(ACTIVE_INSTRUMENTS)
     rows = {}
-    for name, instlist in sets.items():
-        ACTIVE_INSTRUMENTS = list(instlist)
-        n_instr = len(X_COLS) + _n_extra_cols()
-        try:
-            res = estimate_model_two_step(df, G_list, compute_robust=False)
-            est = res["second_step"]["estimates"]
-            se = res["cluster_robust_se"]["reported_se"]
+    try:
+        for name, instlist in sets.items():
+            ACTIVE_INSTRUMENTS = list(instlist)
             try:
-                F = float(res["instrument_strength"]["F_beta_instruments"])
-            except Exception:
-                F = float("nan")
-            rows[name] = {
-                "beta": round(float(est["beta"]), 3),
-                "se_beta": round(float(se["beta"]), 3),
-                "lambda": round(float(est["lambda"]), 3),
-                "delta": round(float(est["delta"]), 3),
-                "F_instr": round(F, 1),
-                "objective": float(est["objective"]),
-                "n_instr": n_instr,
-            }
-        except Exception as e:
-            rows[name] = {"beta": float("nan"), "se_beta": float("nan"),
-                          "lambda": float("nan"), "delta": float("nan"),
-                          "F_instr": float("nan"), "objective": float("nan"),
-                          "n_instr": n_instr, "note": str(e)[:30]}
-    ACTIVE_INSTRUMENTS = saved
+                n_instr = len(X_COLS) + _n_extra_cols()
+                res = estimate_model_two_step(df, G_list, compute_robust=False)
+                est = res["second_step"]["estimates"]
+                se = res["cluster_robust_se"]["reported_se"]
+                try:
+                    F = float(res["instrument_strength"]["F_beta_instruments"])
+                except Exception:
+                    F = float("nan")
+                rows[name] = {
+                    "beta": round(float(est["beta"]), 3),
+                    "se_beta": round(float(se["beta"]), 3),
+                    "lambda": round(float(est["lambda"]), 3),
+                    "delta": round(float(est["delta"]), 3),
+                    "F_instr": round(F, 1),
+                    "objective": float(est["objective"]),
+                    "n_instr": n_instr,
+                }
+            except Exception as e:
+                rows[name] = {"beta": float("nan"), "se_beta": float("nan"),
+                              "lambda": float("nan"), "delta": float("nan"),
+                              "F_instr": float("nan"), "objective": float("nan"),
+                              "n_instr": -1, "note": str(e)[:30]}
+    finally:
+        ACTIVE_INSTRUMENTS = saved
     cols = ["beta", "se_beta", "lambda", "delta", "F_instr", "objective", "n_instr"]
     out = pd.DataFrame(rows).T
     return out.reindex(columns=[c for c in cols if c in out.columns] +

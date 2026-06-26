@@ -1,12 +1,12 @@
 """
-Slide-style figures for Project Replication Zenou -- v2.
+Slide-style figures for Project Replication Zenou -- v5.
 
 Recreates, with the simulated data, the kinds of figures used in the course
 slides (network graphs, the adjacency matrix, the intransitive triad, binned
 peer scatters, the outcome distribution, and the social multiplier).
 
-    python DGP.py
-    python SlideFigures.py
+    python DGP_v5.py
+    python SlideFigures_v5.py
 
 Figures are written to the `figures/` folder. Titles use Title Case.
 """
