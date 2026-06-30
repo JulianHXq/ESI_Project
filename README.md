@@ -1,8 +1,7 @@
 # The Economics of Social Interactions — proyecto v5 (final)
 
 Réplica de **Boucher, Rendall, Ushchev & Zenou (2024)** con su **extensión de efectos
-contextuales** (instrumentos de pares-de-pares). **Todo vive bajo v5**: el modelo extendido está
-fusionado dentro de los módulos v5 con el prefijo `ext_` (no hay módulos ni carpetas aparte).
+contextuales** (instrumentos de pares-de-pares).
 
 ## Estructura
 - `Code/`     todo el código (7 módulos)
