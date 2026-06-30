@@ -1,45 +1,47 @@
-# Code
+# The Economics of Social Interactions — proyecto v5 (final)
 
-Replica di Boucher, Rendall, Ushchev e Zenou (2024), versione consolidata v5.
-Genera dati sintetici di "scuole" a partire dal modello strutturale con parametri veri noti, stima il modello tramite GMM e produce le figure diagnostiche e quelle in stile diapositiva.
+Réplica de **Boucher, Rendall, Ushchev & Zenou (2024)** con su **extensión de efectos
+contextuales** (instrumentos de pares-de-pares). **Todo vive bajo v5**: el modelo extendido está
+fusionado dentro de los módulos v5 con el prefijo `ext_` (no hay módulos ni carpetas aparte).
 
-## Come eseguire tutto
+## Estructura
+- `Code/`     todo el código (7 módulos)
+- `Data/`     `generated_v5/` (baseline) con `extended/` adentro (modelo extendido)
+- `Outputs/`  `v5/` (tablas de baseline y extendido)
+- `Figures/`  `v5/` (figuras de baseline y extendido)
+- `Notes/`    notas en PDF + fuentes `.tex` + `RESUMEN_v5.md`
+- `Guides/`   material de referencia (paper, assignment, ZenouReplicationNote)
 
+## Correr todo
 ```bash
-python run_all_v5.py
+cd Code && python run_all_v5.py
 ```
+Una sola pasada corre la Parte A (baseline) y la Parte B (extendido); regenera `Data/`, `Outputs/`, `Figures/` bajo `v5`.
 
-Questo esegue in ordine `teaching_steps_v5.py`, poi la stima CUE completa, poi `Figures_v5.py` e `SlideFigures_v5.py`.
-Ogni script puo anche essere eseguito separatamente, ma tutti assumono che `DGP_v5.py` abbia gia generato i dati in `data/generated_v5/`.
+## Las dos partes y el puente
+- **Parte A — Baseline (modelo de la clase).** `y = δ·p + λ·S(β)`, norma CES. GMM 2-pasos + CUE,
+  Anderson–Rubin, LIM, test J, comparación de instrumentos. Instrumentos de pares directos válidos
+  (no hay efecto contextual). β verdadero = 10.
+- **Parte B — Modelo extendido (efectos contextuales).** Añade el término contextual `φ'(Gx)`: los
+  instrumentos de pares directos se invalidan y la norma se identifica con **pares-de-pares `G²x`**.
+  Colegios heterogéneos, test F de instrumentos débiles, sensibilidad 2×2. β verdadero = 5.
+  Su código está fusionado en `DGP_v5`/`Estimation_v5`/`Figures_v5` con el prefijo `ext_`.
+- **Puente:** el modo `naive` del modelo extendido **es** el estimador de la clase de la Parte A —
+  el que se vuelve inconsistente al aparecer el efecto contextual. Las dos partes comparten `core.py`.
 
-## Script
+## Código (`Code/`)
+- `core.py` — kernel CES compartido (`ces_norm`, derivada, `peer_average`)
+- `DGP_v5.py` — datos: baseline (`build_environment`) + extendido (`ext_build_environment`)
+- `Estimation_v5.py` — baseline (GMM/CUE/AR/LIM/J) + extendido (`ext_estimate`, `ext_first_stage_F`, `ext_sensitivity_table`)
+- `Figures_v5.py` — figuras baseline + extendidas (`ext_fig_*`)
+- `SlideFigures_v5.py`, `teaching_steps_v5.py` — figuras de diapositiva y walkthrough (baseline)
+- `run_all_v5.py` — orquestador (corre baseline y extendido)
 
-**`DGP_v5.py`** e il processo generatore dei dati. Costruisce la rete di amicizie per ogni scuola, le covariate degli studenti e il GPA di equilibrio a partire dal modello strutturale (lambda, beta, delta noti). Salva tutto in `data/generated_v5/`. Espone `build_environment`, `save_environment`, `load_environment`.
+## Resultados clave
+- Baseline: β = 9.35 (verd. 10), AR = [9.0, 10.5], LIM(β=1) rechazado.
+- Extendido: el modo `naive` (clase) sesga (λ=0.92, β=1.97); el modo `correct` recupera
+  (λ=0.298, β=4.98), F(G²x) ≈ 1.3×10⁴; la sensibilidad 2×2 muestra que se necesitan control + instrumento.
 
-**`Estimation_v5.py`** e il modulo di stima (GMM concentrato in due fasi piu CUE). Nella prima fase predice il GPA usando le covariate proprie e gli effetti fissi di scuola, poi costruisce gli strumenti (`Shat`, `Dhat` e varianti selezionabili) a partire dai valori predetti, infine cerca lambda, beta e delta con errori standard robusti per cluster di scuola. Include test (J di sovraidentificazione, Anderson Rubin, restrizione LIM) e analisi di policy (giocatore chiave, frontiera di identificazione, Monte Carlo).
-
-**`Figures_v5.py`** genera le figure diagnostiche `fig1` fino a `fig11` in `figures_v5/` a partire dai dati generati e dai risultati di stima salvati.
-
-**`SlideFigures_v5.py`** genera le figure in stile diapositiva didattica `slide1` fino a `slide6`, ovvero grafi di rete, matrice di adiacenza, triade intransitiva, scatter di coppie raggruppate, distribuzione del risultato e moltiplicatore sociale.
-
-**`teaching_steps_v5.py`** e uno script didattico passo per passo che mostra i passaggi interni dello stimatore in due fasi, riutilizzando le funzioni di `DGP_v5` e `Estimation_v5`.
-
-**`run_all_v5.py`** e l'orchestratore che esegue tutta la pipeline con un solo comando.
-
-## Cartelle di dati e output (generate automaticamente)
-
-**`data/generated_v5/`** contiene i dati sintetici, cioe `students.csv`, `true_parameters.json`, `metadata.json` e le reti per scuola (`G_school_XX.npz` normalizzata per riga, `raw_G_school_XX.npz` non normalizzata).
-
-**`outputs_v5/`** contiene i risultati della stima, cioe `estimation_results.json`, `estimation_comparison.csv` (stimato contro vero) e `final_estimates_with_cluster_se.csv`.
-
-**`figures_v5/`** contiene le figure PNG prodotte da `Figures_v5.py` e `SlideFigures_v5.py`.
-
-**`__pycache__/`** contiene il bytecode compilato di Python e si puo eliminare senza problemi.
-
-## Ordine delle dipendenze
-
-```
-DGP_v5.py  >  Estimation_v5.py  >  Figures_v5.py / SlideFigures_v5.py
-                  ^
-          teaching_steps_v5.py (usa entrambi)
-```
+## Nota
+Monte Carlo sintético bien especificado (valida método + código, no es evidencia empírica).
+Marcas en el código: `[v5-unify]` (kernel), `[v5-org]` (rutas), `[v5-ext]` (modelo extendido fusionado).

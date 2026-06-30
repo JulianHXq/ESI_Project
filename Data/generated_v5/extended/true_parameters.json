@@ -1,0 +1,12 @@
+{
+  "gamma_age": 0.1,
+  "gamma_female": 0.24,
+  "gamma_f_col": 0.4,
+  "phi_age": 0.0,
+  "phi_female": 0.15,
+  "phi_f_col": 0.3,
+  "lambda": 0.3,
+  "beta": 5.0,
+  "n_gpa_clipped": 3,
+  "share_gpa_clipped": 9.91375037176564e-05
+}

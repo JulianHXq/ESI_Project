@@ -1,0 +1,311 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=2.4cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{ink}{HTML}{23211D}
+\definecolor{accent}{HTML}{8C7B66}
+\definecolor{rulelt}{HTML}{D9D2C7}
+
+\titleformat{\section}{\sffamily\large\bfseries\color{ink}}{\thesection.}{0.6em}{}[{\color{rulelt}\titlerule[0.6pt]}]
+\titleformat{\subsection}{\sffamily\normalsize\bfseries\color{ink}}{\thesubsection}{0.6em}{}
+\titlespacing*{\section}{0pt}{2.1ex plus 1ex minus .2ex}{1.0ex}
+\captionsetup{font=small,labelfont=bf,labelsep=period}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.45em}
+
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\T}{^{\!\top}}
+\newenvironment{where}{\par\nobreak\vspace{-0.2em}\begin{itemize}[leftmargin=1.5em,itemsep=1pt,topsep=2pt,parsep=0pt,label=\textcolor{accent}{\textbullet}]\small}{\end{itemize}\vspace{0.2em}}
+
+\title{\vspace{-1.2cm}\sffamily\bfseries\color{ink} Methodological Note (v5)\\[2pt]
+\large Replication of Boucher, Rendall, Ushchev and Zenou (2024)\\
+\large\itshape Toward a General Theory of Peer Effects}
+\author{Juan Valderrama}
+\date{June 2026}
+
+\begin{document}
+\maketitle
+\vspace{-0.7cm}
+
+\noindent\textbf{Abstract.} This note documents the consolidated final code (\emph{v5}) for the replication. It explains, with the math worked out and every symbol defined, the structural model, why estimation uses GMM, where identification comes from, the concentrated two-step estimator and the continuously updated estimator (CUE), and the full battery of diagnostics. It adds two things relative to earlier drafts: a comparison of several instrument transformations (to see which identify $\beta$ worse) and the over-identification J-test. All figures in the results come from the runs with 150 schools and 30{,}000 students. The estimation is clean because the data come from a correctly specified synthetic DGP; this validates method and code, not an empirical claim about peer effects.
+
+% =====================================================================
+\section{Goal and strategy}
+The paper generalizes the \emph{linear-in-means} (LIM) peer model, where each agent is influenced by the \emph{average} of their peers, to a CES social norm with a curvature parameter $\beta$ that decides \emph{which} peers one responds to. With no access to the real microdata (Add Health), we run a Monte Carlo: (i) generate synthetic data \emph{from the model} with known true parameters; (ii) estimate; (iii) check recovery. If we know the truth, we can validate the estimator and the code.
+
+\subsection{Notation}
+\begin{table}[h]\centering\small
+\caption{Symbols used throughout.}
+\begin{tabular}{ll}
+\toprule
+\multicolumn{2}{l}{\textbf{Model}}\\
+\midrule
+$i,\,j$ & student indices ($j$: friends of $i$); $s(i)$ school of $i$ \\
+$y_i$ & observed GPA (the outcome) of student $i$ \\
+$p_i$ & private component: $i$'s grade absent peer influence \\
+$x_i,\,\gamma,\,c$ & covariates (age, female, college parent), their coefficients, intercept \\
+$u_{s(i)},\,\varepsilon_i$ & school fixed effect; idiosyncratic error, $\E[\varepsilon_i\mid x,G,u]=0$ \\
+$g_{ij},\,G$ & weight $i$ gives friend $j$ (row-normalized); network matrix \\
+$S_i(\beta)$ & CES social norm of $i$'s peers \\
+$\beta$ & curvature of the norm (which peers count) \\
+$\lambda,\,\delta$ & peer-effect intensity; weight on the private component \\
+$\lambda_1=\lambda+\delta-1$ & endogenous spillover (contagion) \\
+$\lambda_2=1-\delta$ & conformism \\
+\midrule
+\multicolumn{2}{l}{\textbf{Estimation}}\\
+\midrule
+$\widehat y_i$ & first-stage predicted GPA (own covariates + school FE) \\
+$\widehat S_i$ & norm at $\widehat y$: instrument for the level of the norm \\
+$\widehat D_i=\partial\widehat S_i/\partial\beta$ & instrument that identifies $\beta$ \\
+$Z_i,\,r_i(\theta)$ & instrument vector; structural residual \\
+$\theta=(\gamma,\lambda,\beta,\delta)$ & parameters; $\bar g(\theta)=\tfrac1n\sum_i Z_i r_i(\theta)$ moments \\
+$W,\,\Omega$ & GMM weight matrix; variance of the moments \\
+$Q(\theta)$ & GMM objective $\bar g\T W \bar g$ \\
+$J(\beta_0),\,J=nQ$ & Anderson--Rubin statistic; Hansen over-identification statistic \\
+$n,\,G_{\text{cl}}$ & students $(30{,}000)$; schools / clusters $(150)$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% =====================================================================
+\section{The structural model}
+For each student $i$,
+\begin{align}
+\text{isolated:}\quad & y_i = p_i, &
+\text{connected:}\quad & y_i = \delta\,p_i + \lambda\,S_i(\beta),
+\end{align}
+\begin{where}
+\item $y_i$ --- GPA; $p_i$ --- private component; $S_i(\beta)$ --- peer norm.
+\item $\delta$ --- weight on own private component; $\lambda$ --- weight on peers.
+\item isolated $=$ no friends (no peer term); connected $=$ at least one friend.
+\end{where}
+The private component is
+\begin{equation}
+p_i = c + x_i\T\gamma + u_{s(i)} + \varepsilon_i, \qquad \E[\varepsilon_i\mid x,G,u]=0 .
+\end{equation}
+\begin{where}
+\item $c$ --- common intercept; $x_i\T\gamma$ --- covariate part; $u_{s(i)}$ --- school fixed effect.
+\item $\varepsilon_i$ --- mean-zero idiosyncratic error given observables.
+\end{where}
+
+\subsection{What $\beta$ does: a power mean}
+\begin{equation}
+S_i(\beta)=\Bigl(\sum_j g_{ij}\,y_j^{\,\beta}\Bigr)^{1/\beta},\qquad \sum_j g_{ij}=1 .
+\end{equation}
+\begin{where}
+\item $g_{ij}$ --- friendship weights (sum to 1 $\Rightarrow$ weighted average); $y_j$ --- friends' grades.
+\item $\beta$ --- curvature: $\beta=1$ mean (LIM); $\beta>1$ over-weights high achievers; $\beta\to\infty$ the max.
+\end{where}
+LIM is the special case $\beta=1$; the empirical question is which $\beta$ fits (here the true value is $10$).
+
+\subsection{Reparametrization and equilibrium}
+\begin{equation}
+\lambda_1=\lambda+\delta-1,\quad \lambda_2=1-\delta,\qquad
+y_i = p_i + \underbrace{\lambda_1 S_i}_{\text{contagion}} + \underbrace{\lambda_2(S_i-p_i)}_{\text{conformism}} .
+\end{equation}
+Because $y_i$ depends on peers' $y_j$, the school's outcomes solve a fixed point $y=T(y)$ with $T(y)=\delta p+\lambda S(y;\beta)$. The CES norm is homogeneous of degree~1, its Jacobian has row sums $\le 1$, so $T$ is a contraction with modulus $\le\lambda<1$: a unique equilibrium, computed by iteration ($\approx 16$ steps). At $\beta=1$, $y=(I-\lambda G)^{-1}\delta p$ and a uniform shock is amplified by the \emph{social multiplier} $\delta/(1-\lambda)=0.85/0.75=1.133$.
+\begin{where}
+\item $\lambda_1$ --- pure spillover; $\lambda_2$ --- pressure toward the group norm; $\lambda_1>0\iff\delta+\lambda>1$.
+\item $(I-\lambda G)^{-1}=I+\lambda G+\lambda^2G^2+\cdots$ --- sum of all feedback rounds.
+\end{where}
+% =====================================================================
+\section{The econometric problem}
+\subsection{Reflection and endogeneity}
+$S_i$ contains the friends' $y_j$, which depend on $\varepsilon_j$ and, through the equilibrium feedback, on $\varepsilon_i$. Hence
+\begin{equation}
+\E[S_i\,\varepsilon_i]\neq 0 ,
+\end{equation}
+so OLS of $y_i$ on $S_i$ is inconsistent: $\hat\lambda_{\text{OLS}}\xrightarrow{p}\lambda+\operatorname{Cov}(S_i,\varepsilon_i)/\operatorname{Var}(S_i)$. This is Manski's (1993) reflection problem plus simultaneity.
+
+\subsection{Why GMM (not OLS or MLE)}
+GMM (Hansen, 1982) needs only \emph{instruments} $Z_i$ with $\E[Z_i\,r_i(\theta_0)]=0$. We use it because $\beta$ enters \emph{nonlinearly} (OLS cannot) and because GMM is semiparametric (no distributional assumption on $\varepsilon$, unlike MLE) and robust to clustering; with optimal weights it is efficient.
+
+% =====================================================================
+\section{Identification and instruments}
+\subsection{Network intransitivities and isolated students}
+Bramoull\'e, Djebbari and Fortin (2009): in a triad $A\!\to\!B\!\to\!C$ with $A\!\not\to\!C$, $C$'s characteristics shift $A$'s norm (through $B$) but do not enter $A$'s equation, so they instrument $S_A$. Network gaps (intransitivities) create the instruments. Separately, isolated students obey $y_i=c+x_i\T\gamma+u+\varepsilon_i$ with no endogeneity, so they pin down $\gamma$ directly (hence $\gamma$ is very precise).
+
+\subsection{The baseline instruments $\widehat S$ and $\widehat D$}
+The first stage predicts $\widehat y$ from own covariates and school effects, then builds
+\begin{equation}
+\widehat S_i=\Bigl(\sum_j g_{ij}\widehat y_j^{\,\beta}\Bigr)^{1/\beta},\qquad
+\widehat D_i=\frac{\partial\widehat S_i}{\partial\beta}
+=\widehat S_i\Bigl[\tfrac1\beta\tfrac{\sum_j g_{ij}\widehat y_j^{\beta}\ln\widehat y_j}{\sum_j g_{ij}\widehat y_j^{\beta}}-\tfrac1{\beta^2}\ln\!\textstyle\sum_j g_{ij}\widehat y_j^{\beta}\Bigr].
+\end{equation}
+\begin{where}
+\item $\widehat y_j$ --- friend's predicted grade (function of exogenous $x$ only).
+\item $\widehat S_i$ --- instruments the \emph{level} of the norm $\Rightarrow$ identifies $\lambda$.
+\item $\widehat D_i=\partial\widehat S_i/\partial\beta$ --- instruments the \emph{curvature} $\Rightarrow$ identifies $\beta$. It is tiny at high $\beta$ (the norm saturates), which is why $\beta$ is the hard parameter.
+\item The baseline does \emph{not} use friend-of-friend covariates ($G^2X$): the first stage uses only own covariates, so $\widehat S,\widehat D$ already encode friends' (distance-1) characteristics. $G^2X$ is offered as an option (below).
+\end{where}
+The non-isolated moments stack $Z_i=(x_i,\widehat S_i,\widehat D_i)$ (5 moments) and the isolated $Z_i=x_i$ (3): 8 moments for 6 parameters, over-identified by~2.
+
+\subsection{Configurable instruments [v5]}
+v5 makes the non-isolated instrument set a switch (\texttt{ACTIVE\_INSTRUMENTS}). Beyond the baseline, one can append $\widehat D^2$, $\widehat S^2$, the norm at $\beta=1$, friends' covariates $GX$, or friends-of-friends $G^2X$, and \texttt{compare\_instrument\_sets} refits under each to show which estimate $\beta$ worse (Section~\ref{sec:instr}).
+
+% =====================================================================
+\section{The estimator}
+\subsection{Concentrated two-step GMM}
+\textbf{(a)} Within transform by (school $\times$ isolation) removes $u_{s(i)}$ and $c$.
+\textbf{(b)} Given $(\lambda,\beta,\delta)$, $\gamma$ is linear, solved analytically, so the search is over 3 parameters:
+\begin{equation}
+Q(\lambda,\beta,\delta)=\bar g(\theta)\T W\,\bar g(\theta),\qquad \hat\theta=\arg\min_\theta Q(\theta).
+\end{equation}
+\textbf{(c)} Two steps: $W=I$ first ($\hat\theta_1$), then $\widehat W=\widehat\Omega^{-1}$ with $\widehat\Omega=\tfrac1n\sum_i Z_iZ_i\T r_i(\hat\theta_1)^2$, re-optimized for the efficient $\hat\theta_2$. A global $\beta$ prescan plus multistart avoid spurious optima.
+\begin{where}
+\item $W$ --- weight matrix; $\widehat W=\widehat\Omega^{-1}$ is the efficient choice.
+\end{where}
+
+\subsection{CUE [v3 / v5]}
+The continuously updated estimator recomputes the weight matrix at \emph{every} $\theta$ inside the objective:
+\begin{equation}
+Q_{\text{CUE}}(\theta)=\bar g(\theta)\T\,\Omega(\theta)^{-1}\,\bar g(\theta).
+\end{equation}
+\begin{where}
+\item $\Omega(\theta)$ --- moment variance recomputed at each $\theta$ (vs fixed in two-step).
+\item Motivation: with a weak instrument CUE can in principle have better finite-sample behavior. Finding (Section~\ref{sec:cue}): in this correctly specified DGP it yields \emph{no practical improvement} over the two-step estimator.
+\end{where}
+
+% =====================================================================
+\section{Inference}
+\textbf{Cluster-robust SE} (sandwich, school clusters, with $G_{\text{cl}}/(G_{\text{cl}}-1)$):
+\begin{equation}
+\widehat V=(\widehat G\T W\widehat G)^{-1}\widehat G\T W\,\widehat\Lambda\,W\widehat G(\widehat G\T W\widehat G)^{-1},\quad
+\widehat\Lambda=\tfrac{G_{\text{cl}}}{G_{\text{cl}}-1}\sum_s\Bigl(\textstyle\sum_{i\in s}Z_ir_i\Bigr)\Bigl(\textstyle\sum_{i\in s}Z_ir_i\Bigr)\T .
+\end{equation}
+\begin{where}
+\item $\widehat G=\partial\bar g/\partial\theta\T$ --- moment Jacobian; $\widehat\Lambda$ --- school-clustered moment variance.
+\item $\lambda_1,\lambda_2$ SEs by the delta method; clustering reflects $150$ schools, not $30{,}000$ independent students.
+\end{where}
+\textbf{Anderson--Rubin} (weak-IV robust): fix $\beta=\beta_0$, profile the rest, $J(\beta_0)=n\,Q(\beta_0)\xrightarrow{d}\chi^2_3$; the 95\% set is $\{\beta_0:J(\beta_0)\le 7.81\}$.
+\textbf{Hansen $J$-test [v5]} (the extra moments as a test): at the efficient step $J=n\,Q(\hat\theta)\xrightarrow{d}\chi^2_{\,8-6}=\chi^2_2$; a large $J$ rejects the over-identifying restrictions.
+\textbf{LIM test:} compare the objective at $\beta=1$ to the free optimum.
+% =====================================================================
+\section{Results}
+\subsection{Generated data}
+\begin{table}[h]\centering\small
+\caption{Synthetic environment (DGP\_v5).}
+\begin{tabular}{lr@{\hspace{2.2em}}lr}
+\toprule
+Schools & 150 & Mean GPA & 2.778 \\
+Students & 30{,}000 & Min / Max GPA & 1.378 / 4.000 \\
+Isolated & 6{,}080 (20.3\%) & Clipped to $[1,4]$ & 1 (0.003\%) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Parameter recovery}
+\begin{table}[h]\centering\small
+\caption{Two-step and CUE estimates (150 schools). School-cluster robust SE; $t$ for the two-step.}
+\begin{tabular}{lrrrrr}
+\toprule
+Parameter & True & Two-step & CUE & Cluster SE & $t$ \\
+\midrule
+$\gamma_{\text{age}}$ & 0.10 & 0.0985 & 0.0985 & 0.0014 & 71.4 \\
+$\gamma_{\text{female}}$ & 0.24 & 0.2401 & 0.2401 & 0.0032 & 75.2 \\
+$\gamma_{\text{parent coll.}}$ & 0.40 & 0.3984 & 0.3984 & 0.0045 & 89.2 \\
+$\lambda$ & 0.25 & 0.2518 & 0.2517 & 0.0076 & 33.2 \\
+$\beta$ & 10.00 & 9.350 & 9.359 & 1.105 & 8.46 \\
+$\delta$ & 0.85 & 0.8486 & 0.8486 & 0.0091 & 92.9 \\
+$\lambda_1$ & 0.10 & 0.1004 & 0.1003 & 0.0116 & 8.66 \\
+$\lambda_2$ & 0.15 & 0.1514 & 0.1514 & 0.0091 & 16.57 \\
+\midrule
+GMM objective $Q$ & --- & 0.000185 & 0.000185 & & \\
+\bottomrule
+\end{tabular}
+\end{table}
+$\gamma,\lambda,\delta$ land almost exactly on the truth; $\beta$ is the least precise. Two-step and CUE coincide at this design.
+
+\subsection{First stage, instruments and tests}
+\begin{table}[h]\centering\small
+\caption{Instrument strength and weak-IV / over-identification / LIM tests.}
+\begin{tabular}{lr@{\hspace{2.0em}}lr}
+\toprule
+Partial $F$ (for $\beta$) & 38.5 & AR 95\% set for $\beta$ & $[9.0,\,10.5]$ \\
+First-stage $R^2$ ($\widehat y$) & 0.575 & $\chi^2_{0.95,3}$ & 7.81 \\
+$\mathrm{corr}(S,\widehat S)$ & 0.701 & Hansen $J=nQ$ (dof 2) & 5.56 ($p=0.062$) \\
+mean $\widehat D$ (levels) & 0.0041 & LIM obj.\ vs free & 0.0071 vs 0.00019 \\
+\bottomrule
+\end{tabular}
+\end{table}
+The AR set contains the true $\beta=10$. The $J$-test does not reject the model (close, $p=0.06$, single draw). The LIM ($\beta=1$) is rejected: the distance statistic $n(Q_{\text{LIM}}-Q_{\text{free}})\approx 209$ on $\chi^2_1$ gives $p\approx 0$ --- the norm is not the simple mean.
+
+\subsection{Instrument transformations}\label{sec:instr}
+\begin{table}[h]\centering\small
+\caption{Refitting under different instrument sets (illustrative, 30 schools, true $\beta=10$). Read: $\beta$ far from 10, huge $\mathrm{SE}$, or tiny $F$ $\Rightarrow$ worse.}
+\begin{tabular}{lrrr}
+\toprule
+Instrument set & $\widehat\beta$ & $\mathrm{SE}(\beta)$ & $F$ \\
+\midrule
+baseline $[X,\widehat S,\widehat D]$ & 8.85 & 2.22 & 8.9 \\
+$+\,\widehat D^2$ (the trap) & 8.10 & 2.08 & 8.7 \\
+$+\,\widehat S^2$ & 10.73 & 3.10 & 8.9 \\
+$+\,\widehat S(\beta{=}1)$ & 8.39 & 2.04 & 8.8 \\
+$+\,GX$ (friends) & 8.44 & 2.04 & 8.8 \\
+$+\,G^2X$ (friends of friends) & 9.38 & 2.15 & 9.0 \\
+$\widehat S$ only (no $\widehat D$) & 2.00 & 57.2 & 0.5 \\
+\bottomrule
+\end{tabular}
+\end{table}
+The qualitative ranking is robust: dropping $\widehat D$ leaves $\beta$ \emph{unidentified} ($\mathrm{SE}=57$), confirming $\widehat D$ carries the curvature signal; extra derivative-like moments ($\widehat D^2$, $\widehat S^2$) do not help and worsen the fit; friend / friend-of-friend covariates are comparable to the baseline.
+
+\subsection{Two-step vs CUE: no practical improvement}\label{sec:cue}
+\begin{table}[h]\centering\small
+\caption{Monte Carlo, two-step vs CUE, true $\beta=10$, two designs.}
+\begin{tabular}{llrrrr}
+\toprule
+Design & Estimator & mean $\widehat\beta$ & median & RMSE & coverage \\
+\midrule
+30 schools (21 reps) & Two-step & 10.50 & 9.73 & 2.76 & 0.95 \\
+                     & CUE      & 10.55 & 9.73 & 2.78 & 0.95 \\
+\midrule
+150 schools (8 reps) & Two-step & \phantom{0}9.91 & 9.82 & 0.54 & 1.00 \\
+                     & CUE      & \phantom{0}9.92 & 9.84 & 0.53 & 1.00 \\
+\bottomrule
+\end{tabular}
+\end{table}
+The two estimators are statistically indistinguishable at both designs. At 150 schools (the real design) they differ by less than $0.05$ in $100\%$ of draws (mean $|\widehat\beta_{\text{CUE}}-\widehat\beta_{\text{2s}}|=0.013$), with identical RMSE, SE and coverage; at 30 schools their medians, RMSE and tails coincide. An earlier 50-draw run had appeared to favour CUE on RMSE, but that gap was driven by a single two-step blow-up in one seed set and does not survive re-sampling. \textbf{Conclusion:} CUE recomputes $\Omega(\theta)^{-1}$ at every $\theta$ at extra computational cost and delivers \emph{no} improvement here; we keep it as a documented option and report the two-step estimator (with the Anderson--Rubin set for $\beta$) as primary.
+
+\subsection{Monte Carlo and identification frontier}
+\begin{table}[h]\centering\small
+\caption{Left: bias / 95\% coverage (36 reps, 30 schools). Right: $\beta$ frontier.}
+\begin{tabular}{lrr@{\hspace{3em}}rrr}
+\toprule
+Param. & Bias & Cov. & Schools & $\mathrm{SE}(\beta)$ & $F$ \\
+\midrule
+$\lambda$ & $-0.004$ & 0.94 & 20 & 3.14 & 5.9 \\
+$\beta$ & $+0.351$ & 0.97 & 40 & 2.70 & 12.0 \\
+$\delta$ & $+0.001$ & 0.97 & 80 & 1.78 & 23.0 \\
+$\lambda_1$ & $-0.003$ & 0.94 & 150 & 1.09 & 37.1 \\
+$\lambda_2$ & $-0.001$ & 0.97 & 300 & 0.85 & 78.9 \\
+\bottomrule
+\end{tabular}
+\end{table}
+$\mathrm{SE}(\beta)$ falls and $F$ rises with the number of schools: more (and denser) network data is the lever for $\beta$.
+
+% =====================================================================
+\section{Why the estimation comes out clean}
+Plainly, the experiment is built to be clean, not because peer effects are easy to measure:
+\begin{enumerate}\itemsep2pt
+\item \textbf{Zero misspecification:} data come from exactly the estimated model ($Q\approx0$).
+\item \textbf{Instruments valid by construction:} network and errors independent; no homophily.
+\item \textbf{No measurement error}, large $n$, the only confounder (school) swept exactly, and isolated students pin down $\gamma$.
+\end{enumerate}
+The only genuine difficulty is $\beta$: at high $\beta$ the CES norm saturates and $\widehat D\to 0$. This validates \textbf{method and code}; with real data it would be messier.
+
+% =====================================================================
+\section{Conclusion}
+The pipeline is: a CES peer model with a fixed-point equilibrium; endogeneity (reflection) that rules out OLS; identification from network intransitivities plus the isolated subsample; concentrated two-step GMM and CUE with $\gamma$ profiled out and cluster-robust SE; and a battery of diagnostics (recovery, Anderson--Rubin, Hansen $J$, LIM, instrument-transformation comparison, two-step-vs-CUE Monte Carlo, identification frontier). All eight parameters are recovered with near-nominal coverage; $\beta$ is consistent but weakly identified at high values, a fact the diagnostics quantify. The consolidated code lives in the \texttt{*\_v5} modules; \texttt{python run\_all\_v5.py} reproduces everything in one pass.
+
+\end{document}

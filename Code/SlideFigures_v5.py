@@ -29,10 +29,23 @@ try:
 except Exception:
     HAS_NX = False
 
-FIG = PROJECT_ROOT / "figures_v5"; FIG.mkdir(exist_ok=True)
+FIG = PROJECT_ROOT / "Figures" / "v5"; FIG.mkdir(parents=True, exist_ok=True)
 INK, ACC, BLU, RED, GRY = "#23211D", "#8C7B66", "#33475B", "#B23A48", "#999999"
-plt.rcParams.update({"axes.titlesize": 12, "axes.titleweight": "bold",
-                     "axes.titlecolor": INK, "figure.dpi": 150})
+plt.rcParams.update({  # [v5] unified publication theme (earthy palette kept)
+    "figure.dpi": 120, "savefig.dpi": 300, "savefig.bbox": "tight",
+    "font.family": "DejaVu Sans", "font.size": 10.5,
+    "axes.titlesize": 13, "axes.titleweight": "bold", "axes.titlecolor": INK,
+    "axes.labelsize": 11, "axes.labelcolor": INK,
+    "axes.edgecolor": "#C9C1B4", "axes.linewidth": 1.0,
+    "axes.grid": True, "axes.axisbelow": True,
+    "grid.color": "#E6E0D5", "grid.linewidth": 0.8, "grid.alpha": 0.7,
+    "axes.spines.top": False, "axes.spines.right": False,
+    "xtick.color": INK, "ytick.color": INK,
+    "xtick.labelsize": 9.5, "ytick.labelsize": 9.5,
+    "legend.frameon": True, "legend.framealpha": 0.92,
+    "legend.edgecolor": "#D9D2C7", "legend.fontsize": 9,
+    "figure.facecolor": "white", "axes.facecolor": "white",
+})
 
 
 def _layout(adj):

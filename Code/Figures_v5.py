@@ -7,7 +7,7 @@ Run this after generating data and (optionally) estimating:
     python Estimation_v5.py
     python Figures_v5.py
 
-Produces diagnostic and presentation figures in the `figures_v5/` folder.
+Produces diagnostic and presentation figures in the `Figures/v5/` folder.
 Plot titles follow Title Case (connectors stay lowercase).
 """
 
@@ -33,13 +33,26 @@ try:
 except Exception:
     HAS_NX = False
 
-FIG_DIR = PROJECT_ROOT / "figures_v5"
-FIG_DIR.mkdir(exist_ok=True)
+FIG_DIR = PROJECT_ROOT / "Figures" / "v5"
+FIG_DIR.mkdir(parents=True, exist_ok=True)
 
 # palette
 INK, ACC, BLU, RED, GRY = "#23211D", "#8C7B66", "#33475B", "#B23A48", "#999999"
-plt.rcParams.update({"axes.titlesize": 12, "axes.titleweight": "bold",
-                     "axes.titlecolor": INK, "figure.dpi": 150})
+plt.rcParams.update({  # [v5] unified publication theme (earthy palette kept)
+    "figure.dpi": 120, "savefig.dpi": 300, "savefig.bbox": "tight",
+    "font.family": "DejaVu Sans", "font.size": 10.5,
+    "axes.titlesize": 13, "axes.titleweight": "bold", "axes.titlecolor": INK,
+    "axes.labelsize": 11, "axes.labelcolor": INK,
+    "axes.edgecolor": "#C9C1B4", "axes.linewidth": 1.0,
+    "axes.grid": True, "axes.axisbelow": True,
+    "grid.color": "#E6E0D5", "grid.linewidth": 0.8, "grid.alpha": 0.7,
+    "axes.spines.top": False, "axes.spines.right": False,
+    "xtick.color": INK, "ytick.color": INK,
+    "xtick.labelsize": 9.5, "ytick.labelsize": 9.5,
+    "legend.frameon": True, "legend.framealpha": 0.92,
+    "legend.edgecolor": "#D9D2C7", "legend.fontsize": 9,
+    "figure.facecolor": "white", "axes.facecolor": "white",
+})
 
 
 # ------------------------------------------------------------------
@@ -136,12 +149,17 @@ def fig_parameter_recovery(true, res):
     ax[0].scatter([true[n] for n in names], yp, marker="x", s=70, color=RED, zorder=5, label="True")
     ax[0].set_yticks(yp); ax[0].set_yticklabels(lbl); ax[0].legend(fontsize=8, loc="lower right")
     ax[0].set_title("Parameter Recovery under Two-Step GMM"); ax[0].set_xlabel("Value")
-    ax[1].errorbar([est["beta"]], [0], xerr=[1.96 * se["beta"]], fmt="o", color=BLU, capsize=4)
-    ax[1].scatter([true["beta"]], [0], marker="x", s=90, color=RED, zorder=5)
-    ax[1].scatter([res["first_step"]["beta"]], [0], marker="s", s=45, color=GRY)
-    ax[1].set_yticks([]); ax[1].set_xlim(0, 14); ax[1].set_xlabel(r"$\beta$")
+    b_est, b_true, b_fs, b_se = est["beta"], true["beta"], res["first_step"]["beta"], se["beta"]
+    ax[1].errorbar([b_est], [0], xerr=[1.96 * b_se], fmt="o", color=BLU, capsize=4,
+                   label=f"Two-step = {b_est:.2f}")
+    ax[1].scatter([b_fs], [0], marker="s", s=55, color=GRY, zorder=4,
+                  label=f"First step = {b_fs:.1f}")
+    ax[1].scatter([b_true], [0], marker="x", s=95, color=RED, zorder=5,
+                  label=f"True = {b_true:.0f}")
+    ax[1].set_yticks([]); ax[1].set_ylim(-1, 1); ax[1].set_xlabel(r"$\beta$")
+    ax[1].set_xlim(0, max(16, b_fs + 2))
     ax[1].set_title(r"Recovery of $\beta$")
-    ax[1].text(0.5, 0.78, "■ first step ≈2\n× true =10", transform=ax[1].transAxes, fontsize=8, ha="center")
+    ax[1].legend(fontsize=7.5, loc="upper center")
     fig.tight_layout(); fig.savefig(FIG_DIR / "fig2_parameter_recovery.png", bbox_inches="tight")
     plt.close(fig)
 
@@ -427,7 +445,7 @@ def fig_identification_frontier(frontier_df):
 
 def main():
     df, raw_G_list, G_list, true = load_environment()
-    res = json.load(open(PROJECT_ROOT / "outputs_v5" / "estimation_results.json"))
+    res = json.load(open(PROJECT_ROOT / "Outputs" / "v5" / "estimation_results.json"))
 
     fig_gpa_distribution(df)
     fig_parameter_recovery(true, res)
@@ -471,7 +489,7 @@ def fig_cue_vs_two_step(mc_df):  # [v3]
     ax[1].axvline(0.95, color=RED, ls="--", lw=1.4, label="Nominal 95%")
     ax[1].set_xlim(0, 1); ax[1].set_yticks(y); ax[1].set_yticklabels([])
     ax[1].set_title("95% CI Coverage"); ax[1].set_xlabel("Coverage"); ax[1].legend(fontsize=8, loc="lower left", framealpha=0.9)
-    fig.suptitle("Two-step vs CUE (Independent DGP Draws)",
+    fig.suptitle("Two-Step vs CUE (Independent DGP Draws)",
                  fontsize=13, fontweight="bold", color=INK, y=1.02)
     fig.tight_layout(); fig.savefig(FIG_DIR / "fig13_cue_vs_two_step.png", bbox_inches="tight")
     plt.close(fig)
@@ -479,3 +497,134 @@ def fig_cue_vs_two_step(mc_df):  # [v3]
 
 if __name__ == "__main__":
     main()
+
+
+# ============================================================
+# [v5-ext] EXTENDED-MODEL FIGURES (contextual / peers-of-peers). Reuse the v5
+# palette and theme defined above; written to Figures/v5/.
+# ============================================================
+FIG_EXT = PROJECT_ROOT / "Figures" / "v5"; FIG_EXT.mkdir(parents=True, exist_ok=True)
+
+def _ext_ball(A, start, radius=2):
+    """distance from start up to `radius` on the undirected graph A (bool)."""
+    dist = {start: 0}; frontier = [start]
+    for d in range(1, radius + 1):
+        nxt = []
+        for u in frontier:
+            for v in np.where(A[u])[0]:
+                if v not in dist:
+                    dist[int(v)] = d; nxt.append(int(v))
+        frontier = nxt
+    return dist
+
+
+def ext_fig_ego_network(raw_G_list, school=0):
+    raw = np.asarray(raw_G_list[school].todense()); A = (raw + raw.T) > 0
+    # pick a focal node with both direct peers and peers-of-peers
+    focal = max(range(A.shape[0]), key=lambda i: A[i].sum())
+    dist = _ext_ball(A, focal, 2)
+    nodes = sorted(dist)
+    sub = A[np.ix_(nodes, nodes)]
+    rng = np.random.default_rng(0)
+    # simple layout by distance ring
+    pos = {}
+    for n in nodes:
+        d = dist[n]
+        if d == 0: pos[n] = np.array([0.0, 0.0])
+        else:
+            ring = [m for m in nodes if dist[m] == d]; ang = 2*np.pi*ring.index(n)/max(len(ring),1)
+            pos[n] = d*np.array([np.cos(ang), np.sin(ang)]) + rng.normal(0, 0.06, 2)
+    fig, a = plt.subplots(figsize=(7.2, 6.2)); a.set_axis_off(); a.grid(False)
+    for i in range(len(nodes)):
+        for j in range(i+1, len(nodes)):
+            if sub[i, j]:
+                p, q = pos[nodes[i]], pos[nodes[j]]
+                a.plot([p[0], q[0]], [p[1], q[1]], color="#CFC8BC", lw=1.0, zorder=1)
+    cmap = {0: RED, 1: BLU, 2: ACC}
+    lab = {0: "Focal student $i$", 1: "Direct peers (distance 1)", 2: "Peers of peers (distance 2)"}
+    for d in (0, 1, 2):
+        pts = np.array([pos[n] for n in nodes if dist[n] == d])
+        a.scatter(pts[:, 0], pts[:, 1], s=[260 if d==0 else 120], color=cmap[d],
+                  edgecolors="white", linewidths=1.4, zorder=3, label=lab[d])
+    a.set_title("Direct Peers vs Peers of Peers (Ego Network)")
+    a.legend(loc="upper left", fontsize=9)
+    a.text(0.5, -0.02, "Peers of peers affect $i$'s peers (hence $i$'s norm) but are not $i$'s direct peers:\n"
+           "their characteristics are excluded from $i$'s equation $\\Rightarrow$ valid instruments.",
+           transform=a.transAxes, ha="center", va="top", fontsize=8.5, color=INK)
+    fig.tight_layout(); fig.savefig(FIG_EXT / "fig1_ego_direct_vs_peerofpeers.png"); plt.close(fig)
+
+
+def ext_fig_first_stage(ctx):
+    iso = ctx["isolated"]; non = ~iso
+    beta = 5.0
+    S = E._group_demean(ces_norm(ctx["G"], ctx["y_level"], beta, iso), ctx["group"])[non]
+    Sh = E._group_demean(ces_norm(ctx["G"], ctx["yhat_correct"], beta, iso), ctx["group"])[non]
+    r = np.corrcoef(S, Sh)[0, 1]
+    fig, a = plt.subplots(figsize=(6.6, 5.0))
+    idx = np.random.default_rng(0).choice(len(S), size=min(3000, len(S)), replace=False)
+    a.scatter(Sh[idx], S[idx], s=8, alpha=0.25, color=BLU)
+    b = np.polyfit(Sh, S, 1); xx = np.linspace(Sh.min(), Sh.max(), 50)
+    a.plot(xx, np.polyval(b, xx), color=RED, lw=2)
+    a.set_title("First-Stage Relevance of the Peer-of-Peers Instrument")
+    a.set_xlabel(r"Predicted norm $\widehat S$ (built from $G^2x$)"); a.set_ylabel(r"True norm $S$ (FE residual)")
+    a.text(0.04, 0.95, f"corr = {r:.2f}", transform=a.transAxes, va="top", fontsize=10)
+    fig.tight_layout(); fig.savefig(FIG_EXT / "fig2_first_stage.png"); plt.close(fig)
+
+
+def ext_fig_objective_profiles(ctx):
+    betas = np.linspace(1.5, 12, 40)
+    fig, ax = plt.subplots(1, 2, figsize=(11, 4.4))
+    for a, mode, ttl in ((ax[0], "correct", "Peers-of-Peers (Correct)"), (ax[1], "naive", "Naive (Class)")):
+        WI, WN = E._identity_W(ctx, mode)
+        Q = [E._objective(bb, ctx, mode, WI, WN) for bb in betas]
+        bmin = betas[int(np.argmin(Q))]
+        a.plot(betas, Q, color=BLU, lw=2)
+        a.axvline(5.0, color=RED, ls="--", lw=1.3, label=r"True $\beta=5$")
+        a.axvline(bmin, color=ACC, ls=":", lw=1.6, label=f"Min $\\approx${bmin:.1f}")
+        a.set_yscale("log"); a.set_title(ttl); a.set_xlabel(r"$\beta$"); a.legend(fontsize=8)
+    ax[0].set_ylabel("GMM objective (log)")
+    fig.suptitle("GMM Objective Profile in $\\beta$", fontsize=13, fontweight="bold", color=INK, y=1.02)
+    fig.tight_layout(); fig.savefig(FIG_EXT / "fig3_objective_profiles.png"); plt.close(fig)
+
+
+def ext_fig_bias(table):
+    params = ["lambda", "beta"]; lbl = [r"$\lambda$", r"$\beta$"]
+    x = np.arange(len(params)); w = 0.26
+    fig, a = plt.subplots(figsize=(7.2, 4.6))
+    a.bar(x - w, table.loc[params, "true"], w, color=GRY, label="True")
+    a.bar(x, table.loc[params, "naive (class)"], w, color=RED, label="Naive (Class)")
+    a.bar(x + w, table.loc[params, "correct"], w, color=BLU, label="Peer-of-peers")
+    a.set_xticks(x); a.set_xticklabels(lbl, fontsize=13); a.legend()
+    a.set_title("Bias of the Class Estimator vs Peer-of-Peers IV")
+    a.set_ylabel("Estimate")
+    for i, p in enumerate(params):
+        for off, col in ((-w, "true"), (0, "naive (class)"), (w, "correct")):
+            v = table.loc[p, col]; a.text(i+off, v+0.03, f"{v:.2f}", ha="center", fontsize=8)
+    fig.tight_layout(); fig.savefig(FIG_EXT / "fig4_bias_comparison.png"); plt.close(fig)
+
+
+def ext_fig_sensitivity(table):
+    """[v5-ext] 2x2 sensitivity: only control + G^2x recovers both lambda and beta."""
+    specs = [r for r in table.index if r != "TRUE"]
+    short = {"naive  (no Gx ctrl, direct-peer IV)": "naive",
+             "control only  (Gx ctrl, direct-peer IV)": "control\nonly",
+             "instrument only  (no Gx ctrl, G^2x IV)": "instr.\nonly",
+             "correct  (Gx ctrl, G^2x IV)": "correct"}
+    labels = [short.get(s, s) for s in specs]
+    cols = [RED, ACC, BLU, "#2E7D32"]
+    fig, ax = plt.subplots(1, 2, figsize=(11, 4.4))
+    for a, par, ttl in ((ax[0], "lambda", r"$\lambda$ (Peer Effect)"),
+                        (ax[1], "beta", r"$\beta$ (CES Curvature)")):
+        vals = [float(table.loc[s, par]) for s in specs]
+        tv = float(table.loc["TRUE", par])
+        a.bar(range(len(specs)), vals, color=cols[:len(specs)], edgecolor="white")
+        a.axhline(tv, color=INK, ls="--", lw=1.4, label=f"True = {tv:.2f}")
+        a.set_xticks(range(len(specs))); a.set_xticklabels(labels, fontsize=8)
+        a.set_title(ttl); a.legend(fontsize=8)
+        for i, v in enumerate(vals):
+            a.text(i, v + 0.02 * max(max(vals), tv), f"{v:.2f}", ha="center", fontsize=8)
+    fig.suptitle(r"Sensitivity to Control and Instrument Choice",
+                 fontsize=12, fontweight="bold", color=INK, y=1.02)
+    fig.tight_layout(); fig.savefig(FIG_EXT / "fig5_sensitivity.png"); plt.close(fig)
+
+

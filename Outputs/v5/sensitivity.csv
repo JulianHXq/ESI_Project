@@ -1,0 +1,6 @@
+,lambda,beta
+"naive  (no Gx ctrl, direct-peer IV)",0.9242194076589783,1.9731155042105257
+"control only  (Gx ctrl, direct-peer IV)",0.7678773378050974,2.037830578642726
+"instrument only  (no Gx ctrl, G^2x IV)",0.4858775637092825,5.167657239767084
+"correct  (Gx ctrl, G^2x IV)",0.2984329466029233,4.983579517751988
+TRUE,0.3,5.0

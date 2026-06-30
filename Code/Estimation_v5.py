@@ -93,7 +93,7 @@ from DGP_v5 import DATA_DIR, PROJECT_ROOT, X_COLS, load_environment
 
 
 # (Full tagged change log vs the primitive is in the module docstring above.)
-OUTPUT_DIR = PROJECT_ROOT / "outputs_v5"
+OUTPUT_DIR = PROJECT_ROOT / "Outputs" / "v5"
 
 STARTING_VALUES = [
     np.array([0.10, 2.0, 0.10]),
@@ -332,76 +332,8 @@ def prepare_estimation_context(df, G_list):
 # 2. Beta-dependent CES objects
 # ============================================================
 
-def ces_norm(G, y, beta, isolated):
-    """
-    Compute the CES peer norm:
-
-        S_i(beta) = (sum_j g_ij y_j^beta)^(1 / beta)
-
-    Isolated students get zero.
-    """
-    y = np.asarray(y, dtype=float)
-
-    if np.any(y <= 0):
-        raise ValueError("CES norm requires strictly positive outcomes.")
-
-    if beta <= 0:
-        raise ValueError("This teaching code assumes beta > 0.")
-
-    y_beta = y ** beta
-    A = G @ y_beta
-
-    S = np.zeros_like(y, dtype=float)
-    active = ~isolated
-
-    if np.any(A[active] <= 0):
-        raise ValueError("The CES norm is undefined for non-positive peer sums.")
-
-    S[active] = A[active] ** (1.0 / beta)
-
-    return S
-
-
-def ces_norm_derivative(G, y, log_y, beta, isolated, S):
-    """
-    Compute d S_i(beta) / d beta for the CES peer norm.
-
-    The derivative is:
-
-        dS_i/dbeta = S_i * [
-            - log(A_i) / beta^2
-            + B_i / (beta A_i)
-        ]
-
-    where A_i = sum_j g_ij y_j^beta and
-    B_i = sum_j g_ij y_j^beta log(y_j).
-    """
-    y = np.asarray(y, dtype=float)
-    log_y = np.asarray(log_y, dtype=float)
-
-    if np.any(y <= 0):
-        raise ValueError("CES derivative requires strictly positive outcomes.")
-
-    if y.shape != log_y.shape:
-        raise ValueError("y and log_y must have the same shape.")
-
-    if beta <= 0:
-        raise ValueError("beta must be > 0.")
-
-    y_beta = y ** beta
-
-    A = G @ y_beta
-    B = G @ (y_beta * log_y)
-
-    D = np.zeros_like(y, dtype=float)
-    active = ~isolated
-
-    D[active] = S[active] * (
-        -np.log(A[active]) / (beta ** 2)
-        + B[active] / (beta * A[active])
-    )
-
-    return D
+# [v5-unify] CES kernel moved to core.py (single source of truth)
+from core import ces_norm, ces_norm_derivative, peer_average
 
 
 def build_estimation_data(beta, context):
@@ -1756,3 +1688,288 @@ def format_instrument_comparison(table, true_beta=10.0):  # [v5]
              " Read: beta far from true / huge se_beta / tiny F  =>  worse.",
              "=" * 70]
     return "\n".join(lines)
+
+
+# ============================================================
+# [v5-ext] EXTENDED-MODEL ESTIMATOR: contextual control (Gx) + peers-of-peers
+# (G^2x) IV, with modes correct/naive/control_only/instr_only, weak-IV F and a
+# 2x2 sensitivity. Public API prefixed ext_ ; the class estimator is mode "naive".
+# ============================================================
+EXT_OUTPUT_DIR = PROJECT_ROOT / "Outputs" / "v5"
+
+def _group_demean(values, group):
+    """Within transform: subtract the mean of each (school x isolation) group."""
+    values = np.asarray(values, float)
+    one = values.ndim == 1
+    if one:
+        values = values[:, None]
+    ng = int(group.max()) + 1
+    cnt = np.bincount(group, minlength=ng).astype(float)
+    sums = np.column_stack([np.bincount(group, weights=values[:, c], minlength=ng)
+                            for c in range(values.shape[1])])
+    means = (sums / cnt[:, None])[group]
+    out = values - means
+    return out.ravel() if one else out
+
+
+def _first_stage(y, design):
+    """OLS fitted values of y on `design` (exogenous columns)."""
+    coef, *_ = np.linalg.lstsq(design, y, rcond=None)
+    return design @ coef
+
+
+def ext_prepare_context(df, G_list):
+    """Prepare everything that does not depend on beta. Builds Gx, G^2x and the
+    two first-stage predictions (with / without peers-of-peers)."""
+    y = df["gpa"].to_numpy(float)
+    X = df[X_COLS].to_numpy(float)
+    school = df["school_id"].to_numpy()
+    G = sparse.block_diag(G_list, format="csr")
+    isolated = np.asarray(G.sum(axis=1)).ravel() == 0
+
+    Gx = peer_average(G, X)             # direct peers' characteristics (G x)
+    G2x = peer_average(G, Gx)           # [v5-ext] peers-of-peers characteristics (G^2 x)
+
+    codes, schools = pd.factorize(school, sort=True)
+    group = 2 * codes + isolated.astype(int)
+
+    dummies = pd.get_dummies(school, prefix="s", drop_first=True, dtype=float).to_numpy()
+    ones = np.ones((len(df), 1))
+    # [v5-ext] correct first stage includes G^2x (the excluded peer-of-peers instrument)
+    yhat_correct = _first_stage(y, np.column_stack([ones, X, Gx, G2x, dummies]))
+    # [NAIVE] class first stage: own covariates only -> instruments carry direct-peer (Gx) variation
+    yhat_naive = _first_stage(y, np.column_stack([ones, X, dummies]))
+    for nm, yh in (("correct", yhat_correct), ("naive", yhat_naive)):
+        if np.any(yh <= 0):
+            raise ValueError(f"first stage {nm} produced non-positive fitted values")
+
+    return {"G": G, "isolated": isolated, "group": group, "codes": codes, "schools": schools,
+            "y_level": y, "X": _group_demean(X, group), "Gx": _group_demean(Gx, group),
+            "G2x": _group_demean(G2x, group),  # [v5-ext] peers-of-peers, demeaned
+            "y": _group_demean(y, group),
+            "yhat_correct": yhat_correct, "yhat_naive": yhat_naive,
+            "log_yhat_correct": np.log(yhat_correct), "log_yhat_naive": np.log(yhat_naive),
+            "n": len(df)}
+
+
+def _blocks(beta, ctx, mode):
+    """Build isolated/connected design, instruments and outcome at a given beta."""
+    G, iso, grp = ctx["G"], ctx["isolated"], ctx["group"]
+    non = ~iso
+    control = mode in ("correct", "control_only")   # [v5-ext] include Gx as control?
+    use_g2x = mode in ("correct", "instr_only")     # [v5-ext] build instruments from G^2x?
+    yhat = ctx["yhat_correct"] if use_g2x else ctx["yhat_naive"]
+    logyh = ctx["log_yhat_correct"] if use_g2x else ctx["log_yhat_naive"]
+
+    S = _group_demean(ces_norm(G, ctx["y_level"], beta, iso), grp)
+    Sh_lvl = ces_norm(G, yhat, beta, iso)
+    Sh = _group_demean(Sh_lvl, grp)
+    Dh = _group_demean(ces_norm_derivative(G, yhat, logyh, beta, iso, Sh_lvl), grp)
+
+    X, Gx, y = ctx["X"], ctx["Gx"], ctx["y"]
+    XI, yI = X[iso], y[iso]
+    XN, GxN, yN, SN = X[non], Gx[non], y[non], S[non]
+    ShN, DhN = Sh[non], Dh[non]
+
+    if control:                                        # controls x, Gx ; instr x, Gx, Sh, Dh
+        DN = np.column_stack([XN, GxN, SN])            # linear design: [gamma, phi, lambda]
+        ZN = np.column_stack([XN, GxN, ShN, DhN])
+        klin = X.shape[1] * 2 + 1                      # gamma(3)+phi(3)+lambda(1)
+    else:                                              # no contextual control: instr x, Sh, Dh
+        DN = np.column_stack([XN, SN])                 # linear design: [gamma, lambda]
+        ZN = np.column_stack([XN, ShN, DhN])
+        klin = X.shape[1] + 1                          # gamma(3)+lambda(1)
+    return dict(XI=XI, yI=yI, XN=XN, yN=yN, DN=DN, ZN=ZN, klin=klin, k=X.shape[1])
+
+
+def _solve_eta(b, WI, WN):
+    """Linear-GMM concentration: solve the linear coefficients eta given beta."""
+    XI, yI, ZN, DN = b["XI"], b["yI"], b["ZN"], b["DN"]
+    NI, NN, klin, k = len(yI), len(b["yN"]), b["klin"], b["k"]
+    # isolated moments load only on gamma (first k of eta)
+    aI = XI.T @ yI / NI
+    BI = np.zeros((k, klin)); BI[:, :k] = XI.T @ XI / NI
+    aN = ZN.T @ b["yN"] / NN
+    BN = ZN.T @ DN / NN
+    a = np.concatenate([aI, aN])
+    B = np.vstack([BI, BN])
+    W = _blockdiag(WI, WN)
+    eta = np.linalg.solve(B.T @ W @ B, B.T @ W @ a)
+    g = a - B @ eta
+    return eta, g, B, W
+
+
+def _blockdiag(A, C):
+    out = np.zeros((A.shape[0] + C.shape[0], A.shape[1] + C.shape[1]))
+    out[:A.shape[0], :A.shape[1]] = A; out[A.shape[0]:, A.shape[1]:] = C
+    return out
+
+
+def _objective(beta, ctx, mode, WI, WN):
+    b = _blocks(beta, ctx, mode)
+    _, g, _, W = _solve_eta(b, WI, WN)
+    return float(g @ W @ g)
+
+
+def _opt_beta(ctx, mode, WI, WN):
+    grid = np.linspace(1.5, 20, 28)
+    vals = [_objective(bb, ctx, mode, WI, WN) for bb in grid]
+    b0 = grid[int(np.argmin(vals))]
+    from scipy.optimize import minimize_scalar
+    r = minimize_scalar(_objective, bounds=(max(1.1, b0 - 1.5), b0 + 1.5),
+                        args=(ctx, mode, WI, WN), method="bounded")
+    return float(r.x)
+
+
+def _identity_W(ctx, mode):
+    k = ctx["X"].shape[1]
+    nz = (2 * k + 2) if mode in ("correct", "control_only") else (k + 2)  # connected instrument count
+    return np.eye(k), np.eye(nz)
+
+
+def _eta_to_params(eta, mode, k):
+    gamma = eta[:k]
+    if mode in ("correct", "control_only"):
+        phi = eta[k:2 * k]; lam = eta[2 * k]
+    else:
+        phi = np.full(k, np.nan); lam = eta[k]
+    return gamma, phi, lam
+
+
+def ext_estimate(df, G_list, mode="correct"):
+    """Concentrated two-step GMM. mode='correct' (correct) or 'naive' (class)."""
+    ctx = ext_prepare_context(df, G_list)
+    k = ctx["X"].shape[1]
+    WI, WN = _identity_W(ctx, mode)
+    # step 1
+    beta = _opt_beta(ctx, mode, WI, WN)
+    b = _blocks(beta, ctx, mode); eta, g, _, _ = _solve_eta(b, WI, WN)
+    # optimal weights from step-1 residuals (clustered)
+    WI, WN = _optimal_weights(beta, ctx, mode, eta)
+    beta = _opt_beta(ctx, mode, WI, WN)
+    b = _blocks(beta, ctx, mode); eta, g, _, _ = _solve_eta(b, WI, WN)
+    gamma, phi, lam = _eta_to_params(eta, mode, k)
+    se = _cluster_se(beta, ctx, mode, eta, WI, WN)
+    est = {"gamma_age": gamma[0], "gamma_female": gamma[1], "gamma_f_col": gamma[2],
+           "phi_age": phi[0], "phi_female": phi[1], "phi_f_col": phi[2],
+           "lambda": lam, "beta": beta, "objective": float(g @ _blockdiag(WI, WN) @ g)}
+    return est, se
+
+
+def _resid_blocks(beta, ctx, mode, eta):
+    b = _blocks(beta, ctx, mode)
+    eI = b["yI"] - b["XI"] @ eta[:b["k"]]
+    eN = b["yN"] - b["DN"] @ eta
+    return b, eI, eN
+
+
+def _optimal_weights(beta, ctx, mode, eta):
+    b, eI, eN = _resid_blocks(beta, ctx, mode, eta)
+    qI = b["XI"] * eI[:, None]; qN = b["ZN"] * eN[:, None]
+    WI = np.linalg.pinv(qI.T @ qI / len(eI))
+    WN = np.linalg.pinv(qN.T @ qN / len(eN))
+    return WI, WN
+
+
+def _cluster_se(beta, ctx, mode, eta, WI, WN):
+    """School-cluster robust SE for (eta, beta) via numerical Jacobian + clustered meat."""
+    k = ctx["X"].shape[1]
+    theta = np.concatenate([eta, [beta]])
+    def moments(th):
+        et, bb = th[:-1], th[-1]
+        b = _blocks(bb, ctx, mode)
+        eI = b["yI"] - b["XI"] @ et[:k]
+        eN = b["yN"] - b["DN"] @ et
+        mI = b["XI"].T @ eI / len(eI); mN = b["ZN"].T @ eN / len(eN)
+        return np.concatenate([mI, mN])
+    m0 = moments(theta); P = len(theta); M = len(m0)
+    Jt = np.zeros((M, P))
+    for j in range(P):
+        h = 1e-6 * (abs(theta[j]) + 1e-6); tp = theta.copy(); tp[j] += h
+        Jt[:, j] = (moments(tp) - m0) / h
+    # clustered meat
+    b = _blocks(beta, ctx, mode)
+    eI = b["yI"] - b["XI"] @ eta[:k]; eN = b["yN"] - b["DN"] @ eta
+    iso = ctx["isolated"]; codes = ctx["codes"]
+    cI, cN = codes[iso], codes[~iso]
+    nS = len(ctx["schools"]); kz = b["ZN"].shape[1]; kx = b["XI"].shape[1]
+    contrib = np.zeros((nS, kx + kz))
+    qI = b["XI"] * eI[:, None]; qN = b["ZN"] * eN[:, None]
+    for c in range(kx):
+        contrib[:, c] = np.bincount(cI, weights=qI[:, c], minlength=nS) / len(eI)
+    for c in range(kz):
+        contrib[:, kx + c] = np.bincount(cN, weights=qN[:, c], minlength=nS) / len(eN)
+    corr = nS / (nS - 1.0)
+    Omega = corr * (contrib.T @ contrib)
+    W = _blockdiag(WI, WN)
+    bread = np.linalg.pinv(Jt.T @ W @ Jt)
+    V = bread @ (Jt.T @ W @ Omega @ W @ Jt) @ bread
+    sd = np.sqrt(np.maximum(np.diag(V), 0.0))
+    names = ["gamma_age","gamma_female","gamma_f_col"]
+    if mode in ("correct", "control_only"):
+        names += ["phi_age","phi_female","phi_f_col","lambda","beta"]
+    else:
+        names += ["lambda","beta"]
+    return dict(zip(names, sd))
+
+
+def ext_compare_estimators(df, G_list, true_parameters=None):
+    """Run NAIVE (class) and CORRECT (extended model) and tabulate against the truth."""
+    est_correct, se_correct = ext_estimate(df, G_list, mode="correct")
+    est_nv, se_nv = ext_estimate(df, G_list, mode="naive")
+    rowsel = ["gamma_age","gamma_female","gamma_f_col","phi_age","phi_female","phi_f_col","lambda","beta"]
+    cols = {}
+    if true_parameters is not None:
+        cols["true"] = pd.Series({k: true_parameters.get(k, np.nan) for k in rowsel})
+    cols["naive (class)"] = pd.Series({k: est_nv.get(k, np.nan) for k in rowsel})
+    cols["correct"] = pd.Series({k: est_correct.get(k, np.nan) for k in rowsel})
+    table = pd.concat(cols, axis=1).reindex(rowsel)
+    return table, (est_correct, se_correct), (est_nv, se_nv)
+
+
+
+
+# ============================================================
+# [v5-ext] Extensions: weak-instrument test and control/instrument sensitivity
+# ============================================================
+
+def ext_first_stage_F(df, G_list, beta=None):
+    """[v5-ext] First-stage weak-instrument test for the PEERS-OF-PEERS instruments.
+
+    Regress the endogenous CES norm S (FE-residual, connected) on the controls
+    [x, Gx] and the excluded instruments G^2x; report the partial F of G^2x.
+    Stock-Yogo rule of thumb: F > 10 -> strong instruments."""
+    ctx = ext_prepare_context(df, G_list)
+    if beta is None:
+        beta = ext_estimate(df, G_list, "correct")[0]["beta"]
+    iso = ctx["isolated"]; non = ~iso; grp = ctx["group"]
+    S = _group_demean(ces_norm(ctx["G"], ctx["y_level"], beta, iso), grp)[non]
+    X = ctx["X"][non]; Gx = ctx["Gx"][non]; G2x = ctx["G2x"][non]
+    def rss(Y, M):
+        b, *_ = np.linalg.lstsq(M, Y, rcond=None); r = Y - M @ b; return float(r @ r)
+    C = np.column_stack([X, Gx])
+    CZ = np.column_stack([X, Gx, G2x])
+    rss_r, rss_u = rss(S, C), rss(S, CZ)
+    q = G2x.shape[1]; n = len(S); pfull = CZ.shape[1]
+    F = ((rss_r - rss_u) / q) / (rss_u / (n - pfull))
+    partial_R2 = (rss_r - rss_u) / rss_r
+    return {"F_peers_of_peers": float(F), "df_num": q, "df_den": int(n - pfull),
+            "partial_R2": float(partial_R2), "beta_used": float(beta), "strong": bool(F > 10)}
+
+
+def ext_sensitivity_table(df, G_list, true_parameters=None):
+    """[v5-ext] 2x2 sensitivity: (contextual control on/off) x (instrument: direct vs G^2x).
+    Only 'correct' (control + G^2x) should recover lambda and beta."""
+    specs = {"naive  (no Gx ctrl, direct-peer IV)": "naive",
+             "control only  (Gx ctrl, direct-peer IV)": "control_only",
+             "instrument only  (no Gx ctrl, G^2x IV)": "instr_only",
+             "correct  (Gx ctrl, G^2x IV)": "correct"}
+    rows = {}
+    for label, m in specs.items():
+        est, _ = ext_estimate(df, G_list, m)
+        rows[label] = {"lambda": est["lambda"], "beta": est["beta"]}
+    table = pd.DataFrame(rows).T[["lambda", "beta"]]
+    if true_parameters is not None:
+        table.loc["TRUE"] = [true_parameters["lambda"], true_parameters["beta"]]
+    return table
+

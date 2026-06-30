@@ -42,8 +42,8 @@ import pandas as pd
 from scipy import sparse
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent
-DATA_DIR = PROJECT_ROOT / "data" / "generated_v5"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent  # [v5-org] repo root (code in Code/)
+DATA_DIR = PROJECT_ROOT / "Data" / "generated_v5"
 
 
 
@@ -108,31 +108,8 @@ def settings_as_dict() -> dict[str, object]:
 # 1. Basic CES function
 # ============================================================
 
-def ces_norm(G, y, beta, isolated):
-    """
-    Compute the CES social norm for each student:
-
-        S_i(beta) = (sum_j g_ij y_j^beta)^(1 / beta)
-
-    Isolated students get norm zero.
-
-    This function assumes y is strictly positive. We do not clip here,
-    because clipping would change the object being estimated.
-    """
-    y = np.asarray(y, dtype=float)
-
-    if np.any(y <= 0):
-        raise ValueError(
-            "CES norm requires strictly positive outcomes. "
-            "Check the DGP or first-stage predicted outcomes."
-        )
-
-    S = np.zeros_like(y, dtype=float)
-
-    A = G @ (y ** beta)
-    S[~isolated] = A[~isolated] ** (1.0 / beta)
-
-    return S
+# [v5-unify] CES kernel moved to core.py (single source of truth)
+from core import ces_norm, peer_average
 
 
 # ============================================================
@@ -601,3 +578,176 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# ============================================================
+# [v5-ext] EXTENDED MODEL: contextual peer effects (phi'(Gx)) + heterogeneous
+# schools, identified with peers-of-peers (G^2x) instruments. Absorbed here so
+# the whole project lives under the v5 namespace (functions prefixed ext_).
+# ============================================================
+EXT_DATA_DIR = PROJECT_ROOT / "Data" / "generated_v5" / "extended"
+
+# ----------------------------- settings ------------------------------
+EXT_SEED = 2026
+EXT_N_SCHOOLS = 150
+EXT_MIN_STUDENTS = 80          # [v5-ext] heterogeneous school sizes
+EXT_MAX_STUDENTS = 320         # [v5-ext]
+EXT_MAX_FRIENDS = 6
+EXT_P_ISOLATED = 0.18
+EXT_GAMMA = np.array([0.10, 0.24, 0.40])   # own characteristics
+EXT_PHI   = np.array([0.00, 0.15, 0.30])   # [v5-ext] contextual: peers' (age, female, parent-college)
+EXT_LAMBDA_TRUE = 0.30                      # peer-norm intensity
+EXT_BETA_TRUE = 5.0                         # CES curvature
+EXT_BASELINE = -0.20
+EXT_SIGMA_EPSILON = 0.20
+EXT_SIGMA_SCHOOL = 0.12
+
+
+# ----------------------------- CES core ------------------------------
+# [v5-unify] CES kernel moved to core.py (single source of truth)
+
+
+# ----------------------------- networks ------------------------------
+def ext_generate_school_sizes(n_schools=EXT_N_SCHOOLS, seed=EXT_SEED):
+    """[v5-ext] Draw a heterogeneous size for each school (realistic)."""
+    rng = np.random.default_rng(seed)
+    return rng.integers(EXT_MIN_STUDENTS, EXT_MAX_STUDENTS + 1, size=n_schools)
+
+
+def ext_generate_school_network(n_students, max_friends, p_isolated, rng):
+    rows, cols = [], []
+    for i in range(n_students):
+        n_friends = 0 if rng.random() < p_isolated else rng.integers(1, max_friends + 1)
+        if n_friends == 0:
+            continue
+        friends = rng.choice(np.delete(np.arange(n_students), i), size=min(n_friends, n_students - 1), replace=False)
+        rows.extend([i] * len(friends)); cols.extend(friends.tolist())
+    raw_G = sparse.csr_matrix((np.ones(len(rows)), (rows, cols)), shape=(n_students, n_students))
+    rs = np.asarray(raw_G.sum(axis=1)).ravel()
+    inv = np.zeros_like(rs, float); inv[rs > 0] = 1.0 / rs[rs > 0]
+    G = (sparse.diags(inv) @ raw_G).tocsr()
+    return raw_G, G
+
+
+def ext_generate_all_networks(sizes, max_friends=EXT_MAX_FRIENDS, p_isolated=EXT_P_ISOLATED, seed=EXT_SEED):
+    """[v5-ext] One network per school, with per-school (heterogeneous) sizes."""
+    rng = np.random.default_rng(seed)
+    raw_G_list, G_list = [], []
+    for n in sizes:
+        raw_G, G = ext_generate_school_network(int(n), max_friends, p_isolated, rng)
+        raw_G_list.append(raw_G); G_list.append(G)
+    return raw_G_list, G_list
+
+
+def ext_generate_students_and_covariates(sizes, seed=EXT_SEED):
+    """[v5-ext] Student covariates; the number per school follows `sizes`."""
+    rng = np.random.default_rng(seed)
+    rows, sid = [], 0
+    for school_id, n in enumerate(sizes):
+        for local_id in range(int(n)):
+            rows.append({"student_id": sid, "school_id": school_id, "local_id": local_id,
+                         "age": int(np.clip(np.rint(rng.normal(15.0, 1.2)), 13, 18)),
+                         "female": int(rng.random() < 0.5),
+                         "f_col": int(rng.random() < 0.4)})
+            sid += 1
+    return pd.DataFrame(rows)
+
+
+# ----------------------------- outcome -------------------------------
+def _ext_draw_private_in_range(mean, sd, rng, lo=1.0, hi=4.0):
+    eps = rng.normal(0.0, sd, size=len(mean))
+    p = mean + eps
+    bad0 = int(np.sum((p < lo) | (p > hi)))
+    while np.any((p < lo) | (p > hi)):
+        b = (p < lo) | (p > hi)
+        p[b] = mean[b] + rng.normal(0.0, sd, size=int(np.sum(b)))
+    return p, 100.0 * bad0 / len(mean)
+
+
+def ext_generate_gpa_from_model(df, G_list, gamma=EXT_GAMMA, phi=EXT_PHI, lambda_true=EXT_LAMBDA_TRUE,
+                            beta_true=EXT_BETA_TRUE, intercept=EXT_BASELINE,
+                            sigma_school=EXT_SIGMA_SCHOOL, sigma_epsilon=EXT_SIGMA_EPSILON,
+                            seed=EXT_SEED, max_iter=2000, tol=1e-10):
+    """Outcome with the [v5-ext] contextual effect phi'(Gx) and a fixed point.
+
+        connected: y_i = p_i + phi'(Gx)_i + lambda S_i(beta, y)
+        isolated:  y_i = p_i,   with p_i = c + x_i'gamma + u_school + eps_i
+    Realized GPA is clipped to [1,4]."""
+    rng = np.random.default_rng(seed)
+    df = df.copy()
+    X_all = df[X_COLS].to_numpy(float)
+    y_all = np.empty(len(df)); p_all = np.empty(len(df))
+    school_eff = rng.normal(0.0, sigma_school, size=len(G_list))
+    n_clip_total = 0; start = 0
+    for s, G in enumerate(G_list):
+        n = G.shape[0]; sl = slice(start, start + n)
+        X = X_all[sl]
+        isolated = np.asarray(G.sum(axis=1)).ravel() == 0
+        pmean = intercept + X @ gamma + school_eff[s]
+        p, _ = _ext_draw_private_in_range(pmean, sigma_epsilon, rng, 1.0, 3.6)
+        contextual = peer_average(G, X) @ phi          # [v5-ext] phi'(Gx)_i
+        y = p.copy()
+        for _ in range(max_iter):
+            S = ces_norm(G, y, beta_true, isolated)
+            y_new = p + contextual + lambda_true * S
+            y_new[isolated] = p[isolated]
+            if np.max(np.abs(y_new - y)) < tol:
+                y = y_new; break
+            y = y_new
+        n_clip_total += int(np.sum((y < 1.0) | (y > 4.0)))
+        y = np.clip(y, 1.0, 4.0)                        # realistic cap
+        y_all[sl] = y; p_all[sl] = p; start += n
+    df["gpa"] = y_all; df["private_component"] = p_all
+    true_parameters = {
+        "gamma_age": gamma[0], "gamma_female": gamma[1], "gamma_f_col": gamma[2],
+        "phi_age": phi[0], "phi_female": phi[1], "phi_f_col": phi[2],
+        "lambda": lambda_true, "beta": beta_true,
+        "n_gpa_clipped": int(n_clip_total), "share_gpa_clipped": n_clip_total / len(df),
+    }
+    return df, true_parameters
+
+
+# ----------------------------- entry points --------------------------
+def ext_build_environment(seed=EXT_SEED):
+    sizes = ext_generate_school_sizes(EXT_N_SCHOOLS, seed)
+    raw_G_list, G_list = ext_generate_all_networks(sizes, seed=seed + 1)
+    df = ext_generate_students_and_covariates(sizes, seed=seed + 2)
+    df, true_parameters = ext_generate_gpa_from_model(df, G_list, seed=seed + 3)
+    return df, raw_G_list, G_list, true_parameters
+
+
+def ext_summarize_environment(df, G_list, true_parameters):
+    sizes = df.groupby("school_id").size()
+    iso = np.concatenate([np.asarray(G.sum(axis=1)).ravel() == 0 for G in G_list])
+    lines = ["Synthetic environment created (extended model (contextual peer effects)).", "",
+             f"Number of schools: {df['school_id'].nunique()}",
+             f"Number of students: {len(df)}",
+             f"School size: min {sizes.min()}, mean {sizes.mean():.1f}, max {sizes.max()}  [v5-ext: heterogeneous]",
+             f"Mean GPA: {df['gpa'].mean():.3f}   range [{df['gpa'].min():.3f}, {df['gpa'].max():.3f}]",
+             f"Share isolated: {np.mean(iso):.3f}", "",
+             "True parameters:", pd.Series(true_parameters).to_string()]
+    return "\n".join(lines)
+
+
+def ext_save_environment(df, raw_G_list, G_list, true_parameters, output_dir=EXT_DATA_DIR):
+    output_dir = Path(output_dir); output_dir.mkdir(parents=True, exist_ok=True)
+    df.to_csv(output_dir / "students.csv", index=False)
+    for k, G in enumerate(G_list):
+        sparse.save_npz(output_dir / f"G_school_{k:03d}.npz", G)
+    for k, rg in enumerate(raw_G_list):                      # [v5-ext] persist raw networks too
+        sparse.save_npz(output_dir / f"raw_G_school_{k:03d}.npz", rg)
+    with (output_dir / "true_parameters.json").open("w", encoding="utf-8") as f:
+        json.dump(true_parameters, f, indent=2)
+
+
+def ext_load_environment(input_dir=EXT_DATA_DIR):
+    input_dir = Path(input_dir)
+    df = pd.read_csv(input_dir / "students.csv")
+    def num(p): return int(p.stem.rsplit("_", 1)[-1])
+    G_list = [sparse.load_npz(p).tocsr() for p in sorted(input_dir.glob("G_school_*.npz"), key=num)]
+    _rawf = sorted(input_dir.glob("raw_G_school_*.npz"), key=num)
+    raw_G_list = [sparse.load_npz(p).tocsr() for p in _rawf] if _rawf else list(G_list)
+    true_parameters = json.load(open(input_dir / "true_parameters.json"))
+    return df, raw_G_list, G_list, true_parameters
+
+

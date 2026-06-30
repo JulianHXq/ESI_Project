@@ -1,0 +1,29 @@
+{
+  "project": "Project Replication Zenou",
+  "settings": {
+    "set_seed": 1234,
+    "set_stu_perschool": 60,
+    "set_n_schools": 6,
+    "set_max_friends": 5,
+    "set_p_isolated": 0.2,
+    "set_gamma": [
+      0.1,
+      0.24,
+      0.4
+    ],
+    "set_baseline": 0.7,
+    "set_sigma_epsilon": 0.2,
+    "set_sigma_school": 0.12,
+    "set_lambda_true": 0.25,
+    "set_delta_true": 0.85,
+    "set_beta_true": 10.0,
+    "set_strict_range": false,
+    "set_clip_to_range": true
+  },
+  "files": {
+    "students": "students.csv",
+    "true_parameters": "true_parameters.json",
+    "raw_network_pattern": "raw_G_school_XX.npz",
+    "network_pattern": "G_school_XX.npz"
+  }
+}

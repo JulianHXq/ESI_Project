@@ -1,0 +1,15 @@
+{
+  "gamma_age": 0.1,
+  "gamma_female": 0.24,
+  "gamma_f_col": 0.4,
+  "lambda": 0.25,
+  "beta": 10.0,
+  "delta": 0.85,
+  "lambda_1": 0.10000000000000009,
+  "lambda_2": 0.15000000000000002,
+  "avg_initial_bad_epsilon_share": 0.0,
+  "avg_fixed_point_iterations": 15.833333333333334,
+  "max_fixed_point_iterations": 16,
+  "n_gpa_clipped": 0,
+  "share_gpa_clipped": 0.0
+}
