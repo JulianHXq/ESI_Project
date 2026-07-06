@@ -18,6 +18,9 @@
 \setlength{\parindent}{0pt}\setlength{\parskip}{0.38em}
 \graphicspath{{figs_pp/}}
 \newcommand{\E}{\mathbb{E}}\newcommand{\T}{^{\!\top}}
+% [typo] allow long \texttt code names to wrap at underscores so they stay within the margins
+\renewcommand{\_}{\textunderscore\allowbreak}
+\setlength{\emergencystretch}{3em}
 \title{\vspace{-1.4cm}\sffamily\bfseries\color{ink} Estimating Social Interactions with Peer-of-Peers Instruments\\[2pt]
 \large A solution to the assignment (Campa \& De Giorgi, Uniandes 2026)}
 \author{Juan Valderrama \and Mateo Gil \and Julian Herrera}
