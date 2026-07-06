@@ -1596,7 +1596,8 @@ def format_full_report(true_parameters, results):  # [v3]
         A(f"    two-step:  Q={q:.6f}  J=n*Q={jt['J']:.2f}  p={jt['p_value']:.3f}")
     q = results["cue"]["estimates"]["objective"]; jc = overid_j_test(n, q, n_moments=2 * len(X_COLS) + _n_extra_cols())
     A(f"    CUE:       Q={q:.6f}  J=n*Q={jc['J']:.2f}  p={jc['p_value']:.3f}")
-    A("    (large J / small p -> the model's extra moments reject it)")
+    _rej = "rejects" if jc["p_value"] < 0.05 else "does not reject"
+    A(f"    (at 5%: the J-test {_rej} the over-identifying restrictions; p={jc['p_value']:.3f})")
 
     # [5] instrument strength
     istr = results.get("instrument_strength")
