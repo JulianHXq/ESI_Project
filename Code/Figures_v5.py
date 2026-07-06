@@ -541,7 +541,7 @@ def ext_fig_ego_network(raw_G_list, school=0):
                 p, q = pos[nodes[i]], pos[nodes[j]]
                 a.plot([p[0], q[0]], [p[1], q[1]], color="#CFC8BC", lw=1.0, zorder=1)
     cmap = {0: RED, 1: BLU, 2: ACC}
-    lab = {0: "Focal student $i$", 1: "Direct peers (distance 1)", 2: "Peers of peers (distance 2)"}
+    lab = {0: "Focal Student $i$", 1: "Direct Peers (Distance 1)", 2: "Peers of Peers (Distance 2)"}
     for d in (0, 1, 2):
         pts = np.array([pos[n] for n in nodes if dist[n] == d])
         a.scatter(pts[:, 0], pts[:, 1], s=[260 if d==0 else 120], color=cmap[d],
@@ -566,7 +566,7 @@ def ext_fig_first_stage(ctx):
     b = np.polyfit(Sh, S, 1); xx = np.linspace(Sh.min(), Sh.max(), 50)
     a.plot(xx, np.polyval(b, xx), color=RED, lw=2)
     a.set_title("First-Stage Relevance of the Peer-of-Peers Instrument")
-    a.set_xlabel(r"Predicted norm $\widehat S$ (built from $G^2x$)"); a.set_ylabel(r"True norm $S$ (FE residual)")
+    a.set_xlabel(r"Predicted Norm $\widehat S$ (Built from $G^2x$)"); a.set_ylabel(r"True Norm $S$ (FE Residual)")
     a.text(0.04, 0.95, f"corr = {r:.2f}", transform=a.transAxes, va="top", fontsize=10)
     fig.tight_layout(); fig.savefig(FIG_EXT / "fig2_first_stage.png"); plt.close(fig)
 
@@ -582,7 +582,7 @@ def ext_fig_objective_profiles(ctx):
         a.axvline(5.0, color=RED, ls="--", lw=1.3, label=r"True $\beta=5$")
         a.axvline(bmin, color=ACC, ls=":", lw=1.6, label=f"Min $\\approx${bmin:.1f}")
         a.set_yscale("log"); a.set_title(ttl); a.set_xlabel(r"$\beta$"); a.legend(fontsize=8)
-    ax[0].set_ylabel("GMM objective (log)")
+    ax[0].set_ylabel("GMM Objective (Log)")
     fig.suptitle("GMM Objective Profile in $\\beta$", fontsize=13, fontweight="bold", color=INK, y=1.02)
     fig.tight_layout(); fig.savefig(FIG_EXT / "fig3_objective_profiles.png"); plt.close(fig)
 
@@ -593,7 +593,7 @@ def ext_fig_bias(table):
     fig, a = plt.subplots(figsize=(7.2, 4.6))
     a.bar(x - w, table.loc[params, "true"], w, color=GRY, label="True")
     a.bar(x, table.loc[params, "naive (class)"], w, color=RED, label="Naive (Class)")
-    a.bar(x + w, table.loc[params, "correct"], w, color=BLU, label="Peer-of-peers")
+    a.bar(x + w, table.loc[params, "correct"], w, color=BLU, label="Peer-of-Peers")
     a.set_xticks(x); a.set_xticklabels(lbl, fontsize=13); a.legend()
     a.set_title("Bias of the Class Estimator vs Peer-of-Peers IV")
     a.set_ylabel("Estimate")

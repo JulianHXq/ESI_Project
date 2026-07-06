@@ -32,7 +32,7 @@
 \noindent\textbf{Summary.} We relax the class exclusion restriction by letting \emph{direct peers' characteristics} affect a student's outcome directly. This makes direct-peer instruments invalid and the class estimator inconsistent. We identify the model instead with \emph{peers-of-peers} characteristics ($G^2x$) as excluded instruments, estimated by the same concentrated two-step GMM with the CES nonlinearity. On synthetic data with heterogeneous schools, the class estimator badly overstates the peer effect ($\widehat\lambda=0.92$ vs.\ true $0.30$, $\widehat\beta=1.97$ vs.\ $5.0$), while the peer-of-peers estimator recovers every parameter. A Hansen $J$-test, a Monte Carlo, network-robust SE and higher-order instruments corroborate the strategy.
 
 % ==================================================================
-\section{Model and the exclusion violation}
+\section{Model and the Exclusion Violation}
 Let $y_i$ be GPA and $g_{ij}$ the (row-normalized) weight $i$ puts on peer $j$. The CES peer norm is $\tilde y_i(\beta,y)=\big(\sum_j g_{ij}y_j^{\beta}\big)^{1/\beta}$. The \textbf{extended} outcome equation adds a contextual term in direct peers' characteristics $(Gx)_i=\sum_j g_{ij}x_j$:
 \begin{equation}\label{eq:model}
 \text{connected:}\ \ y_i = x_i\T\gamma + \underbrace{(Gx)_i\T\phi}_{\text{contextual [new]}} + \lambda\,\tilde y_i(\beta,y) + \varepsilon_i;
@@ -40,18 +40,18 @@ Let $y_i$ be GPA and $g_{ij}$ the (row-normalized) weight $i$ puts on peer $j$. 
 \end{equation}
 (We set $\delta=1$ so own characteristics enter equally for both groups; this keeps the algebra light and preserves the identification problem.)
 
-\textbf{Micro-foundation (where the equation comes from).} Each student picks effort $y_i$ (the GPA) to maximize
+\textbf{Micro-Foundation.} Each student picks effort $y_i$ (the GPA) to maximize
 \[ U_i(y_i)=\big(\,x_i\T\gamma+(Gx)_i\T\phi+\varepsilon_i\big)\,y_i-\tfrac12 y_i^2+\lambda\,y_i\,\tilde y_i(\beta,y), \]
 a private return net of a quadratic effort cost, plus a complementarity with the peer norm. The private return is shifted by \emph{own and direct peers'} characteristics; the latter captures that peers' background or study environment raises $i$'s marginal return to effort. Taking peers' actions as given (Nash), the first-order condition $\partial U_i/\partial y_i=0$ yields exactly~\eqref{eq:model}. The equilibrium is the fixed point $y=X\gamma+\phi(Gx)+\lambda\,\tilde y(\beta,y)$, unique for $\lambda<1$ (a contraction), which is what the DGP solves. Setting $\phi=0$ recovers the class model, where $Gx$ is a valid excluded instrument; the assignment's twist is $\phi\neq0$, which puts $Gx$ \emph{inside} $i$'s equation.
 
-\textbf{Item 1. Why the class estimator is inconsistent.} In class, $\tilde y_i$ was instrumented with functions of direct peers' characteristics $Gx$, valid because $Gx$ shifted peers' outcomes but was \emph{excluded} from $i$'s own equation. Once $\phi\neq0$, $Gx$ enters $i$'s equation directly. An estimator that (a) omits the term $(Gx)\T\phi$ and (b) uses $Gx$-based instruments therefore violates the exclusion restriction:
+\textbf{Item 1. Why the Class Estimator Is Inconsistent.} In class, $\tilde y_i$ was instrumented with functions of direct peers' characteristics $Gx$, valid because $Gx$ shifted peers' outcomes but was \emph{excluded} from $i$'s own equation. Once $\phi\neq0$, $Gx$ enters $i$'s equation directly. An estimator that (a) omits the term $(Gx)\T\phi$ and (b) uses $Gx$-based instruments therefore violates the exclusion restriction:
 \begin{equation}
 \E[z_i\,\varepsilon_i^{\text{class}}]=\E\big[z_i\,(\varepsilon_i+(Gx)_i\T\phi)\big]\neq 0 ,
 \end{equation}
 because $z_i$ is built from the same $Gx$ now sitting in the (composite) error. The direct-peer instrument is correlated with the omitted contextual term, so $\widehat\lambda$ and $\widehat\beta$ are inconsistent (Section~5 shows $\widehat\lambda$ inflated to $0.92$).
 
 % ==================================================================
-\section{Identification with peers of peers}
+\section{Identification with Peers of Peers}
 \textbf{Item 2. Relevance.} Let $(G^2x)_i=\sum_j g_{ij}(Gx)_j$ be the characteristics of $i$'s peers-of-peers. They shift the outcomes $y_j$ of $i$'s direct peers (through \emph{their} private and contextual terms), and hence move $i$'s norm $\tilde y_i$. Thus $\operatorname{Cov}\big((G^2x)_i,\tilde y_i\big)\neq0$: peers-of-peers' characteristics are relevant for the endogenous norm (the first-stage $F$ in Section~6 is $\approx1.3\times10^4$).
 
 \textbf{Item 3. Validity.} $(G^2x)_i$ are \emph{valid excluded} instruments under the assumption that the direct effect of others' characteristics reaches only \textbf{direct} peers (distance~1). Formally,
@@ -60,18 +60,18 @@ because $z_i$ is built from the same $Gx$ now sitting in the (composite) error. 
 \end{equation}
 which holds if (i) only direct peers' characteristics enter $i$'s equation (no distance-2 contextual effect), and (ii) distance-2 characteristics are uncorrelated with $i$'s idiosyncratic shock (guaranteed by construction: characteristics and errors are independent, with no homophily).
 
-\textbf{Item 4. The identifying assumption, illustrated.} Figure~\ref{fig:ego} shows a focal student $i$, the \emph{direct peers} (distance~1) whose characteristics now enter $i$'s equation, and the \emph{peers of peers} (distance~2) whose characteristics do not. In an intransitive triad $A\!\to\!B\!\to\!C$ with $A\!\not\to\!C$, $x_C$ affects $y_B$ (hence $A$'s norm) but is excluded from $A$'s equation, so $x_C$ instruments $A$'s norm.
+\textbf{Item 4. The Identifying Assumption, Illustrated.} Figure~\ref{fig:ego} shows a focal student $i$, the \emph{direct peers} (distance~1) whose characteristics now enter $i$'s equation, and the \emph{peers of peers} (distance~2) whose characteristics do not. In an intransitive triad $A\!\to\!B\!\to\!C$ with $A\!\not\to\!C$, $x_C$ affects $y_B$ (hence $A$'s norm) but is excluded from $A$'s equation, so $x_C$ instruments $A$'s norm.
 \begin{figure}[h]\centering
 \includegraphics[width=0.58\linewidth]{fig1_ego_direct_vs_peerofpeers.png}
 \caption{Direct peers (distance 1, in $i$'s equation) vs.\ peers of peers (distance 2, excluded $\Rightarrow$ instruments).}
 \label{fig:ego}
 \end{figure}
 % ==================================================================
-\section{Estimation algorithm (Item 5)}
+\section{Estimation Algorithm}
 We use the \emph{same} concentrated two-step GMM as in class, changing only the controls and the excluded instruments.
 \begin{enumerate}[leftmargin=1.4em,itemsep=1pt,topsep=2pt]
-\item \textbf{Within transform} by (school $\times$ isolation) to remove the intercept and school fixed effects.
-\item \textbf{First stage / instrument construction.} Fit $\widehat y=$ OLS of $y$ on $[1,x,Gx,G^2x,\text{school dummies}]$. The key addition is $G^2x$. Build the predicted norm and its curvature instrument
+\item \textbf{Within Transform} by (school $\times$ isolation) to remove the intercept and school fixed effects.
+\item \textbf{First Stage / Instrument Construction.} Fit $\widehat y=$ OLS of $y$ on $[1,x,Gx,G^2x,\text{school dummies}]$. The key addition is $G^2x$. Build the predicted norm and its curvature instrument
 \[
 \widehat S_i=\Big(\textstyle\sum_j g_{ij}\widehat y_j^{\beta}\Big)^{1/\beta},\qquad
 \widehat D_i=\frac{\partial \widehat S_i}{\partial\beta}
@@ -79,17 +79,17 @@ We use the \emph{same} concentrated two-step GMM as in class, changing only the 
 \]
 Because $x$ and $Gx$ are controls in the structural equation, the \emph{excluded} identifying variation in $\widehat S,\widehat D$ is exactly the $G^2x$ part of $\widehat y$.
 \item \textbf{Moments.} Isolated: $\E[x_i\,(y_i-x_i\T\gamma)]=0$. Connected: $\E[Z_i\,(y_i-x_i\T\gamma-(Gx)_i\T\phi-\lambda S_i(\beta))]=0$ with $Z_i=(x_i,(Gx)_i,\widehat S_i,\widehat D_i)$. This is over-identified (11 moments, 8 parameters).
-\item \textbf{Concentration + search.} Given $\beta$, the residual is linear in $(\gamma,\phi,\lambda)$, solved analytically; we then minimize the GMM objective over the single nonlinear parameter $\beta$ (grid $+$ bounded search).
-\item \textbf{Two-step and SE.} Identity weights first, then the optimal weight $\widehat W=\widehat\Omega^{-1}$, and school-cluster-robust standard errors (sandwich with the $G/(G-1)$ correction).
+\item \textbf{Concentration + Search.} Given $\beta$, the residual is linear in $(\gamma,\phi,\lambda)$, solved analytically; we then minimize the GMM objective over the single nonlinear parameter $\beta$ (grid $+$ bounded search).
+\item \textbf{Two-Step and SE.} Identity weights first, then the optimal weight $\widehat W=\widehat\Omega^{-1}$, and school-cluster-robust standard errors (sandwich with the $G/(G-1)$ correction).
 \end{enumerate}
 The \textbf{naive (class) estimator} we compare against omits the $(Gx)\T\phi$ control and builds $\widehat S,\widehat D$ from a first stage on own covariates only $[1,x,\text{dummies}]$, so its instruments carry direct-peer ($Gx$) variation, which is invalid here.
 
 % ==================================================================
 \section{Data}
-The synthetic environment matches the class DGP with two realistic changes. \textbf{(i) Heterogeneous schools:} each of the 150 schools draws its own size in $[80,320]$ ($30{,}261$ students, mean size $202$, $18\%$ isolated). \textbf{(ii) Contextual effect:} direct peers' characteristics enter the outcome with $\phi=(0,0.15,0.30)$ on (age, female, parent-college). Realized GPA is generated from the fixed point $y=p+(Gx)\phi+\lambda S(y,\beta)$ and capped to $[1,4]$ ($<0.01\%$ clipped). True values: $\gamma=(0.10,0.24,0.40)$, $\lambda=0.30$, $\beta=5$.
+The synthetic environment matches the class DGP with two realistic changes. \textbf{(i) Heterogeneous Schools:} each of the 150 schools draws its own size in $[80,320]$ ($30{,}261$ students, mean size $202$, $18\%$ isolated). \textbf{(ii) Contextual Effect:} direct peers' characteristics enter the outcome with $\phi=(0,0.15,0.30)$ on (age, female, parent-college). Realized GPA is generated from the fixed point $y=p+(Gx)\phi+\lambda S(y,\beta)$ and capped to $[1,4]$ ($<0.01\%$ clipped). True values: $\gamma=(0.10,0.24,0.40)$, $\lambda=0.30$, $\beta=5$.
 
 % ==================================================================
-\section{Results (Item 6)}
+\section{Results}
 \begin{table}[h]\centering\small
 \caption{True vs.\ naive (class, inconsistent) vs.\ peer-of-peers (correct). Cluster-robust SE for the correct estimator in brackets.}
 \begin{tabular}{lrrr}
@@ -116,10 +116,10 @@ The class estimator triples the peer effect ($0.92$ vs.\ $0.30$) and badly misse
 \end{figure}
 
 % ==================================================================
-\section{Extensions and further checks}
-\textbf{Weak-instrument test.} Regressing the endogenous norm $S$ on the controls $(x,Gx)$ and the excluded $G^2x$, the partial $F$ for $G^2x$ is $\approx 1.3\times10^{4}$ (df $3,\,24{,}778$; partial $R^2=0.62$), far above the Stock and Yogo threshold: the peer-of-peers instruments are very strong.
+\section{Extensions and Further Checks}
+\textbf{Weak-Instrument Test.} Regressing the endogenous norm $S$ on the controls $(x,Gx)$ and the excluded $G^2x$, the partial $F$ for $G^2x$ is $\approx 1.3\times10^{4}$ (df $3,\,24{,}778$; partial $R^2=0.62$), far above the Stock and Yogo threshold: the peer-of-peers instruments are very strong.
 
-\textbf{Sensitivity (control $\times$ instrument).} The correct estimator combines two ingredients: controlling for $Gx$ and instrumenting with $G^2x$. Table~\ref{tab:sens} switches each on and off.
+\textbf{Sensitivity (Control $\times$ Instrument).} The correct estimator combines two ingredients: controlling for $Gx$ and instrumenting with $G^2x$. Table~\ref{tab:sens} switches each on and off.
 \begin{table}[h]\centering\small
 \caption{Only the combination (control $+$ $G^2x$ instrument) recovers both parameters.}\label{tab:sens}
 \begin{tabular}{lrr}
@@ -141,18 +141,18 @@ The two ingredients play different roles: $G^2x$ identifies the curvature (both 
 
 \textbf{Monte Carlo.} Across 8 independent draws (100 schools each, seeds 1000 to 1007) the correct estimator is essentially unbiased, with median $(\widehat\lambda,\widehat\beta)=(0.30,\,5.12)$ vs.\ true $(0.30,5)$, while the naive estimator is biased in \emph{every} draw (median $(0.93,\,1.95)$).
 
-\textbf{Network-robust SE.} Networks are block-diagonal by school (independent schools), so the school-cluster SE already sums every within-network score correlation and \emph{is} the network-robust variance. Here it barely differs from the i.i.d.\ SE ($\widehat\lambda$: $0.0054$ vs.\ $0.0053$), because the school fixed effects absorb the common component.
+\textbf{Network-Robust SE.} Networks are block-diagonal by school (independent schools), so the school-cluster SE already sums every within-network score correlation and \emph{is} the network-robust variance. Here it barely differs from the i.i.d.\ SE ($\widehat\lambda$: $0.0054$ vs.\ $0.0053$), because the school fixed effects absorb the common component.
 
-\textbf{Higher-order instruments.} Distance-3 characteristics $G^3x$ add statistically strong but modest incremental relevance for the norm (partial $F=478$, partial $R^2=0.05$ beyond $G^2x$): $G^2x$ is the workhorse, and $G^3x$ can serve as extra over-identifying instruments.
+\textbf{Higher-Order Instruments.} Distance-3 characteristics $G^3x$ add statistically strong but modest incremental relevance for the norm (partial $F=478$, partial $R^2=0.05$ beyond $G^2x$): $G^2x$ is the workhorse, and $G^3x$ can serve as extra over-identifying instruments.
 
-\textbf{Robustness to realistic networks.} We stress-test the strategy on a \emph{realistic} network (\texttt{ext\_build\_environment\_realistic}) that adds homophily (friends chosen by similarity, including on a latent unobserved ability that also enters the outcome), triadic closure (clustering), and selective isolation. These frictions violate the exclusion restriction: the latent ability makes the instruments correlate with the error. The correct estimator's point estimates stay only mildly off ($\widehat\lambda\approx0.31$, $\widehat\beta\approx4.6$ at 150 schools), so the bias is easy to miss, but the Hansen $J$-test \textbf{flags it decisively}: $J\approx29$ ($p<0.001$) on the realistic data versus $J=1.53$ ($p=0.68$) on the clean data. The over-identification test is thus the practical safeguard: peers-of-peers identification is only as good as the ``effects reach distance~1 only'' assumption, and $J$ tells you when that fails.
+\textbf{Robustness to Realistic Networks.} We stress-test the strategy on a \emph{realistic} network (\texttt{ext\_build\_environment\_realistic}) that adds homophily (friends chosen by similarity, including on a latent unobserved ability that also enters the outcome), triadic closure (clustering), and selective isolation. These frictions violate the exclusion restriction: the latent ability makes the instruments correlate with the error. The correct estimator's point estimates stay only mildly off ($\widehat\lambda\approx0.31$, $\widehat\beta\approx4.6$ at 150 schools), so the bias is easy to miss, but the Hansen $J$-test \textbf{flags it decisively}: $J\approx29$ ($p<0.001$) on the realistic data versus $J=1.53$ ($p=0.68$) on the clean data. The over-identification test is thus the practical safeguard: peers-of-peers identification is only as good as the ``effects reach distance~1 only'' assumption, and $J$ tells you when that fails.
 
 \begin{figure}[h]\centering
 \includegraphics[width=0.80\linewidth]{fig5_sensitivity.png}
 \caption{$\lambda$ and $\beta$ under the four specifications; only ``correct'' (green) matches the dashed true value in both panels.}\label{fig:sens}
 \end{figure}
 
-\section{Code modifications and reproducibility}
+\section{Code Modifications and Reproducibility}
 The extended model lives inside the class (v5) codebase; all changes are marked in-line with \texttt{[v5-ext]} comments and the extended functions carry the \texttt{ext\_} prefix.
 \begin{itemize}[leftmargin=1.4em,itemsep=1pt,topsep=2pt]
 \item \texttt{Code/DGP\_v5.py}: \texttt{[v5-ext]} \texttt{ext\_build\_environment} (heterogeneous schools $+$ contextual $\phi'(Gx)$); \texttt{ext\_build\_environment\_realistic} $+$ \texttt{ext\_network\_diagnostics} (homophily, triadic closure, selective isolation, latent ability).
@@ -161,6 +161,6 @@ The extended model lives inside the class (v5) codebase; all changes are marked 
 \end{itemize}
 \textbf{Reproduce} from the repository with \texttt{cd Code \&\& python run\_extension.py} (extended model only) or \texttt{python run\_all\_v5.py} (baseline $+$ extended $+$ realistic stress test): it runs the estimators, prints and saves the comparison table plus every extension above to \texttt{Outputs/v5/}, and writes the figures to \texttt{Figures/v5/}.
 
-\textbf{Extensions implemented.} (i) weak-instrument $F$; (ii) a $2\times2$ control/instrument sensitivity; (iii) a Hansen overidentification $J$-test; (iv) a Monte Carlo over independent draws; (v) network-robust (school-cluster) SE benchmarked against i.i.d.; (vi) higher-order ($G^3x$) instrument relevance; (vii) a realistic-network stress test (homophily, triadic closure, selective isolation, latent ability) where the $J$-test flags the broken exclusion restriction; plus a micro-foundation and heterogeneous schools.
+\textbf{Extensions Implemented.} (i) weak-instrument $F$; (ii) a $2\times2$ control/instrument sensitivity; (iii) a Hansen overidentification $J$-test; (iv) a Monte Carlo over independent draws; (v) network-robust (school-cluster) SE benchmarked against i.i.d.; (vi) higher-order ($G^3x$) instrument relevance; (vii) a realistic-network stress test (homophily, triadic closure, selective isolation, latent ability) where the $J$-test flags the broken exclusion restriction; plus a micro-foundation and heterogeneous schools.
 
 \end{document}
