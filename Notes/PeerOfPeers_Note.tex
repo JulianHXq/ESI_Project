@@ -110,9 +110,9 @@ $\beta$ (CES curvature)  & 5.00 & \textbf{1.97} & \textbf{4.98}\,[0.248] \\
 The class estimator triples the peer effect ($0.92$ vs.\ $0.30$) and badly misses the curvature ($1.97$ vs.\ $5$), because the omitted contextual term loads onto the (invalid) direct-peer instruments. The peer-of-peers estimator recovers every parameter, including the contextual coefficients $\phi$.
 
 \begin{figure}[h]\centering
-\includegraphics[width=0.49\linewidth]{fig4_bias_comparison.png}\hfill
-\includegraphics[width=0.49\linewidth]{fig3_objective_profiles.png}
-\caption{Left: bias of the class estimator vs.\ the peer-of-peers IV for $\lambda$ and $\beta$. Right: GMM objective profiles: the correct estimator's minimum sits at the true $\beta=5$, the naive one at $\approx2$.}
+\includegraphics[width=0.52\linewidth]{fig4_bias_comparison.png}\\[6pt]
+\includegraphics[width=0.88\linewidth]{fig3_objective_profiles.png}
+\caption{Top: bias of the class estimator vs.\ the peer-of-peers IV for $\lambda$ and $\beta$. Bottom: GMM objective profiles: the correct estimator's minimum sits at the true $\beta=5$, the naive one at $\approx2$.}
 \end{figure}
 
 % ==================================================================
@@ -148,7 +148,7 @@ The two ingredients play different roles: $G^2x$ identifies the curvature (both 
 \textbf{Robustness to Realistic Networks.} We stress-test the strategy on a \emph{realistic} network (\texttt{ext\_build\_environment\_realistic}) that adds homophily (friends chosen by similarity, including on a latent unobserved ability that also enters the outcome), triadic closure (clustering), and selective isolation. These frictions violate the exclusion restriction: the latent ability makes the instruments correlate with the error. The correct estimator's point estimates stay only mildly off ($\widehat\lambda\approx0.31$, $\widehat\beta\approx4.6$ at 150 schools), so the bias is easy to miss, but the Hansen $J$-test \textbf{flags it decisively}: $J\approx29$ ($p<0.001$) on the realistic data versus $J=1.53$ ($p=0.68$) on the clean data. The over-identification test is thus the practical safeguard: peers-of-peers identification is only as good as the ``effects reach distance~1 only'' assumption, and $J$ tells you when that fails.
 
 \begin{figure}[h]\centering
-\includegraphics[width=0.80\linewidth]{fig5_sensitivity.png}
+\includegraphics[width=0.66\linewidth]{fig5_sensitivity.png}
 \caption{$\lambda$ and $\beta$ under the four specifications; only ``correct'' (green) matches the dashed true value in both panels.}\label{fig:sens}
 \end{figure}
 
@@ -160,7 +160,5 @@ The extended model lives inside the class (v5) codebase; all changes are marked 
 \item \texttt{Code/Figures\_v5.py} (\texttt{ext\_fig\_*}) and \texttt{Code/run\_all\_v5.py} / \texttt{run\_extension.py} / \texttt{run\_realistic.py}: figures and one-command drivers.
 \end{itemize}
 \textbf{Reproduce} from the repository with \texttt{cd Code \&\& python run\_extension.py} (extended model only) or \texttt{python run\_all\_v5.py} (baseline $+$ extended $+$ realistic stress test): it runs the estimators, prints and saves the comparison table plus every extension above to \texttt{Outputs/v5/}, and writes the figures to \texttt{Figures/v5/}.
-
-\textbf{Extensions Implemented.} (i) weak-instrument $F$; (ii) a $2\times2$ control/instrument sensitivity; (iii) a Hansen overidentification $J$-test; (iv) a Monte Carlo over independent draws; (v) network-robust (school-cluster) SE benchmarked against i.i.d.; (vi) higher-order ($G^3x$) instrument relevance; (vii) a realistic-network stress test (homophily, triadic closure, selective isolation, latent ability) where the $J$-test flags the broken exclusion restriction; plus a micro-foundation and heterogeneous schools.
 
 \end{document}
