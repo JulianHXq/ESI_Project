@@ -1,47 +1,57 @@
-# The Economics of Social Interactions
+# Peer Effects with a CES Social Norm
 
-Réplica de **Boucher, Rendall, Ushchev y Zenou (2024)**, *"Toward a General Theory of Peer Effects"*, junto con una extensión que identifica las interacciones sociales usando **instrumentos de pares de pares** (la tarea del curso; Campa y De Giorgi, Uniandes 2026).
+A simulation study that replicates the peer effects model of Boucher, Rendall, Ushchev and Zenou (2024), *Toward a General Theory of Peer Effects*, and extends it to the case where a peer's characteristics affect an individual directly.
 
-El proyecto tiene tres partes que comparten un mismo kernel CES (`Code/core.py`).
+The model is estimated on synthetic data drawn from a known data generating process, so every parameter has a true value. The code recovers those values and shows where a naive estimator fails. The exercise therefore validates the method and its implementation; it is not an empirical claim about real data.
 
-## Las tres partes
+## The model
 
-**Parte A. Réplica (el modelo de la clase).** Cada estudiante responde a una norma social CES de los resultados de sus pares, `y = δ·p + λ·S(β)`. Se estima con un GMM concentrado en dos pasos (con CUE), más un conjunto de confianza de Anderson y Rubin, un test LIM, un test J de Hansen y una comparación de instrumentos. Aquí las características de los pares directos son instrumentos válidos porque no hay efecto contextual. β verdadero = 10.
+Each individual chooses an outcome (here a GPA) that responds to a CES aggregate of the outcomes of the people they are connected to:
 
-**Parte B. Extensión (efectos contextuales).** Las características de los pares directos entran en el resultado de forma directa mediante un término `φ'(Gx)`. Esto invalida los instrumentos de pares directos, así que la norma endógena se identifica con las características de los **pares de pares**, `G²x`. La extensión añade colegios heterogéneos, un test F de instrumentos débiles, una sensibilidad 2×2, un test J, un Monte Carlo, errores estándar robustos a la red e instrumentos de orden mayor. Su código vive en los mismos módulos con el prefijo `ext_`. β verdadero = 5.
+```
+y_i = δ · p_i + λ · S_i(β),      S_i(β) = ( Σ_j g_ij · y_j^β )^(1/β)
+```
 
-**Parte C. Redes realistas (robustez).** Un ejercicio de estrés añade homofilia, cierre triádico, aislamiento selectivo y una habilidad latente. Estas fricciones rompen el supuesto identificador; el test J de Hansen lo detecta incluso cuando las estimaciones puntuales parecen razonables.
+Here `p_i` is the individual's private component, `λ` is the strength of the peer effect, and `β` sets which peers matter: `β = 1` is the simple mean, while a larger `β` puts more weight on the highest achievers. Because each outcome depends on the others, the equilibrium is a fixed point and the peer norm is endogenous, so the model is estimated by GMM.
 
-El puente entre A y B: el modo `naive` del modelo extendido es exactamente el estimador de la clase, el que se vuelve inconsistente cuando aparece el efecto contextual.
+## Two settings
 
-## Cómo correrlo
+**Baseline.** A peer's characteristics influence an individual only through that peer's outcome. The endogenous norm is instrumented with functions of peers' characteristics, following Bramoullé, Djebbari and Fortin (2009).
+
+**Extension: direct effects of peers' characteristics.** A contextual term is added so that a peer's characteristics also enter an individual's outcome directly. This invalidates any instrument built from direct peers, so the norm is identified instead with the characteristics of peers of peers, that is, individuals at network distance two. Those characteristics still move the norm but are excluded from the individual's own equation.
+
+A robustness section then stresses the extension with realistic network features (homophily, clustering, selective isolation, and a latent unobserved trait). These break the identifying assumption, and the overidentification test detects the failure.
+
+## Results
+
+- Baseline: the true value `β = 10` is recovered at 9.35, the weak instrument robust confidence set for `β` is [9.0, 10.5], and the restriction that the norm is a simple mean is rejected.
+- Extension: ignoring the direct effect of peers' characteristics biases the peer effect upward (`λ = 0.92` against a true 0.30); the estimator based on peers of peers recovers it (`λ = 0.30`, `β = 5.0`) with a very strong first stage (`F ≈ 1.3 × 10⁴`).
+- Robustness: under realistic homophily the overidentification test rejects (`p < 0.001`), correctly flagging that the exclusion restriction no longer holds.
+
+## Running it
+
 ```bash
 cd Code
-python run_all_v5.py      # todo: Parte A + Parte B + Parte C
-python run_assignment.py  # solo la Parte B (la tarea)
-python run_realistic.py   # solo la Parte C (el estrés de robustez)
+python run_all_v5.py      # the full study: baseline, extension, and robustness
+python run_assignment.py  # the extension only
+python run_realistic.py   # the robustness stress test only
 ```
-Requisitos: numpy, pandas, scipy, matplotlib. Semillas fijas. Los resultados quedan en `Outputs/` y las figuras en `Figures/`.
 
-## Estructura
-- `Code/`: todo el código (ver abajo)
-- `Data/`: datos sintéticos generados
-- `Outputs/`: tablas y resultados de estimación
-- `Figures/`: figuras de diagnóstico y de diapositiva
-- `Notes/`: las notas en PDF y sus fuentes LaTeX
-- `Guides/`: material de referencia (el paper, la tarea)
+Requirements: numpy, pandas, scipy, matplotlib. The seeds are fixed, so the results are reproducible. Tables are written to `Outputs/` and figures to `Figures/`.
 
-## Código
-- `core.py`: kernel CES compartido (`ces_norm`, su derivada, `peer_average`).
-- `DGP_v5.py`: generación de datos del modelo de la clase, de la extensión contextual (`ext_build_environment`) y de la variante con redes realistas (`ext_build_environment_realistic`, `ext_network_diagnostics`).
-- `Estimation_v5.py`: estimación. El GMM/CUE de la clase, y el estimador extendido de pares de pares con todos sus chequeos (`ext_estimate`, `ext_first_stage_F`, `ext_sensitivity_table`, `ext_overid_j_test`, `ext_monte_carlo`, `ext_network_robust_se`, `ext_higher_order_relevance`).
-- `Figures_v5.py`, `SlideFigures_v5.py`, `teaching_steps_v5.py`: figuras y un recorrido paso a paso del estimador.
-- `run_all_v5.py`, `run_assignment.py`, `run_realistic.py`: orquestadores de un solo comando.
+## Repository
 
-## Resultados principales
-- Réplica: β recuperado en 9.35 (verdadero 10), conjunto de Anderson y Rubin [9.0, 10.5], y se rechaza la restricción de la media (β = 1).
-- Extensión: el estimador de la clase sobreestima el efecto de pares (λ = 0.92, β = 1.97); el de pares de pares lo recupera (λ = 0.298, β = 4.98), con un primer estadio muy fuerte (F ≈ 1.3×10⁴).
-- Robustez: bajo homofilia realista el test J de Hansen rechaza (p < 0.001), y así detecta que el supuesto de exclusión se rompe.
+- `Code/`
+  - `core.py`: the shared CES kernel.
+  - `DGP_v5.py`: the data generating processes (baseline, contextual extension, and the realistic network variant).
+  - `Estimation_v5.py`: the GMM estimators and every check (weak instruments, control and instrument sensitivity, Hansen J, Monte Carlo, cluster and network robust standard errors, higher order instruments).
+  - `Figures_v5.py`, `SlideFigures_v5.py`, `teaching_steps_v5.py`: figures and a step by step walkthrough of the estimator.
+  - `run_all_v5.py`, `run_assignment.py`, `run_realistic.py`: one command drivers.
+- `Data/`, `Outputs/`, `Figures/`: generated artifacts.
+- `Notes/`: a written note with the derivations and results (PDF and LaTeX source).
+- `Guides/`: reference material.
 
-## Nota
-Todo corre sobre datos sintéticos bien especificados (un Monte Carlo), así que el ejercicio valida el método y el código; no es una afirmación empírica sobre estudiantes reales. Los cambios respecto al código de la clase están marcados en línea con comentarios `[v5-ext]`.
+## References
+
+- Boucher, Rendall, Ushchev and Zenou (2024). *Toward a General Theory of Peer Effects*. Econometrica.
+- Bramoullé, Djebbari and Fortin (2009). *Identification of Peer Effects through Social Networks*. Journal of Econometrics.
