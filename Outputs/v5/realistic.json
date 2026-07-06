@@ -1,0 +1,38 @@
+{
+  "diagnostics": {
+    "mean_clustering": 0.4872107350536339,
+    "friend_homophily_fcol_corr": 0.899121905463405,
+    "isolated_rate_fcol0": 0.31301115241635685,
+    "isolated_rate_fcol1": 0.08636836628511967,
+    "overall_isolated_rate": 0.21856027753686036
+  },
+  "correct": {
+    "gamma_age": 0.08391640050004587,
+    "gamma_female": 0.21873491681740664,
+    "gamma_f_col": 0.37089354235795524,
+    "phi_age": 0.02770856095899129,
+    "phi_female": 0.2014498186462659,
+    "phi_f_col": 0.404865730988989,
+    "lambda": 0.17593928979643814,
+    "beta": 21.499993169461117,
+    "objective": 0.006343779075758282
+  },
+  "naive": {
+    "gamma_age": 0.07861354578335253,
+    "gamma_female": 0.21787223990754473,
+    "gamma_f_col": 0.3787749241375338,
+    "phi_age": NaN,
+    "phi_female": NaN,
+    "phi_f_col": NaN,
+    "lambda": 0.6096842184213557,
+    "beta": 2.544424599947128,
+    "objective": 0.00013513599571629323
+  },
+  "overid_j": {
+    "J": 11.060726021646735,
+    "df": 3,
+    "p_value": 0.011401998342228306,
+    "beta_used": 21.499993169461117,
+    "reject_5pct": true
+  }
+}

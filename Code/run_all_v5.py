@@ -92,11 +92,34 @@ def run_extended():
     F.ext_fig_objective_profiles(ctx); F.ext_fig_bias(table); F.ext_fig_sensitivity(stab)
 
 
+def run_realistic():
+    _banner("PART C  --  REALISTIC NETWORKS (homophily, triadic closure, selective isolation)")
+    import json
+    import DGP_v5 as D, Estimation_v5 as E
+    df, raw, G, tp = D.ext_build_environment_realistic(seed=2026)
+    diag = D.ext_network_diagnostics(df, raw)
+    print("Network diagnostics (realistic):")
+    for k, v in diag.items():
+        print(f"  {k}: {v:.3f}")
+    ec, _ = E.ext_estimate(df, G, "correct"); en, _ = E.ext_estimate(df, G, "naive")
+    J = E.ext_overid_j_test(df, G)
+    print("\nEstimation on realistic data (true lambda=0.30, beta=5.0):")
+    print("  correct: lambda=%.3f beta=%.2f | naive: lambda=%.3f beta=%.2f"
+          % (ec["lambda"], ec["beta"], en["lambda"], en["beta"]))
+    verdict = ("REJECTED -> instruments invalid (homophily breaks the exclusion restriction)"
+               if J["reject_5pct"] else "not rejected")
+    print("  Hansen overid J=%.2f (p=%.3f): %s" % (J["J"], J["p_value"], verdict))
+    E.EXT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    with (E.EXT_OUTPUT_DIR / "realistic.json").open("w") as f:
+        json.dump({"diagnostics": diag, "correct": ec, "naive": en, "overid_j": J}, f, indent=2)
+
+
 def main():
     run_baseline()
     run_extended()
+    run_realistic()
     print("\n" + "=" * 72)
-    print("DONE.  Everything under v5: Outputs/v5, Figures/v5, Data/generated_v5 (+ /extended)")
+    print("DONE.  Ran Part A (baseline) + Part B (extended) + Part C (realistic). Everything under v5.")
     print("=" * 72)
 
 
