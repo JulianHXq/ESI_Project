@@ -1,0 +1,35 @@
+{
+  "overid_j": {
+    "J": 1.5315914118576335,
+    "df": 3,
+    "p_value": 0.6749984759362513,
+    "beta_used": 4.983579517744634,
+    "reject_5pct": false
+  },
+  "network_robust_se": {
+    "lambda_se_cluster": 0.005364715744896474,
+    "lambda_se_iid": 0.005315425248968857,
+    "beta_se_cluster": 0.24817309002788418,
+    "beta_se_iid": 0.2527577770836138
+  },
+  "higher_order_G3x": {
+    "F_G3x_beyond_G2x": 478.37136261768586,
+    "df_num": 3,
+    "df_den": 24775,
+    "partial_R2": 0.0547542098841208,
+    "adds_relevance": true
+  },
+  "monte_carlo": {
+    "n_reps": 8,
+    "n_schools": 100,
+    "true_lambda": 0.3,
+    "true_beta": 5.0,
+    "correct_lambda_median": 0.30043288270611523,
+    "correct_beta_median": 5.121020823376703,
+    "correct_lambda_mean": 0.30076512367676894,
+    "correct_beta_mean": 5.032830080318284,
+    "naive_lambda_median": 0.9311365080810072,
+    "naive_beta_median": 1.953007264688152,
+    "naive_more_biased_share": 1.0
+  }
+}

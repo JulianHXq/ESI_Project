@@ -142,6 +142,8 @@ The two ingredients play different roles: $G^2x$ identifies the curvature (both 
 
 \textbf{Higher-order instruments.} Distance-3 characteristics $G^3x$ add statistically strong but modest incremental relevance for the norm (partial $F=478$, partial $R^2=0.05$ beyond $G^2x$): $G^2x$ is the workhorse, and $G^3x$ can serve as extra over-identifying instruments.
 
+\textbf{Robustness to realistic networks.} We stress-test the strategy on a \emph{realistic} network (\texttt{ext\_build\_environment\_realistic}) that adds homophily (friends chosen by similarity, including on a latent unobserved ability that also enters the outcome), triadic closure (clustering), and selective isolation. These frictions violate the exclusion restriction --- the latent ability makes the instruments correlate with the error --- and the correct estimator biases badly ($\widehat\beta$ blows up to $\approx21$, $\widehat\lambda$ drifts to $0.18$). Crucially, the Hansen $J$-test \textbf{detects} it: it rejects on the realistic data ($p=0.001$) while it does not on the clean data ($p=0.27$). The over-identification test is thus the practical safeguard --- peers-of-peers identification is only as good as the ``effects reach distance~1 only'' assumption, and $J$ tells you when that fails.
+
 \begin{figure}[h]\centering
 \includegraphics[width=0.80\linewidth]{fig5_sensitivity.png}
 \caption{$\lambda$ and $\beta$ under the four specifications; only ``correct'' (green) matches the dashed true value in both panels.}\label{fig:sens}
@@ -150,12 +152,12 @@ The two ingredients play different roles: $G^2x$ identifies the curvature (both 
 \section{Code modifications and reproducibility}
 The extended model lives inside the class (v5) codebase; all changes are marked in-line with \texttt{[v5-ext]} comments and the extended functions carry the \texttt{ext\_} prefix.
 \begin{itemize}[leftmargin=1.4em,itemsep=1pt,topsep=2pt]
-\item \texttt{Code/DGP\_v5.py}: \texttt{[v5-ext]} \texttt{ext\_build\_environment} --- heterogeneous schools and the contextual term $\phi'(Gx)$ in the outcome fixed point.
+\item \texttt{Code/DGP\_v5.py}: \texttt{[v5-ext]} \texttt{ext\_build\_environment} (heterogeneous schools $+$ contextual $\phi'(Gx)$); \texttt{ext\_build\_environment\_realistic} $+$ \texttt{ext\_network\_diagnostics} (homophily, triadic closure, selective isolation, latent ability).
 \item \texttt{Code/Estimation\_v5.py}: \texttt{[v5-ext]} \texttt{ext\_estimate} ($Gx$ control, first stage on $[x,Gx,G^2x]$, instruments $Z=(x,Gx,\widehat S,\widehat D)$; mode \texttt{naive} is the class estimator), \texttt{ext\_first\_stage\_F}, \texttt{ext\_sensitivity\_table}, \texttt{ext\_overid\_j\_test}, \texttt{ext\_monte\_carlo}, \texttt{ext\_network\_robust\_se}, \texttt{ext\_higher\_order\_relevance}; the shared CES kernel is \texttt{Code/core.py}.
-\item \texttt{Code/Figures\_v5.py} (\texttt{ext\_fig\_*}) and \texttt{Code/run\_all\_v5.py} / \texttt{run\_assignment.py}: figures and one-command drivers.
+\item \texttt{Code/Figures\_v5.py} (\texttt{ext\_fig\_*}) and \texttt{Code/run\_all\_v5.py} / \texttt{run\_assignment.py} / \texttt{run\_realistic.py}: figures and one-command drivers.
 \end{itemize}
 \textbf{Reproduce} from the repository with \texttt{cd Code \&\& python run\_assignment.py} (extended model only) or \texttt{python run\_all\_v5.py} (class replication $+$ extended): it runs both estimators, prints and saves the comparison table plus every extension above to \texttt{Outputs/v5/}, and writes the figures to \texttt{Figures/v5/}.
 
-\textbf{Extensions implemented.} (i) weak-instrument $F$; (ii) a $2\times2$ control/instrument sensitivity; (iii) a Hansen overidentification $J$-test; (iv) a Monte Carlo over independent draws; (v) network-robust (school-cluster) SE benchmarked against i.i.d.; (vi) higher-order ($G^3x$) instrument relevance; plus a micro-foundation of the outcome equation and heterogeneous schools.
+\textbf{Extensions implemented.} (i) weak-instrument $F$; (ii) a $2\times2$ control/instrument sensitivity; (iii) a Hansen overidentification $J$-test; (iv) a Monte Carlo over independent draws; (v) network-robust (school-cluster) SE benchmarked against i.i.d.; (vi) higher-order ($G^3x$) instrument relevance; (vii) a realistic-network stress test (homophily, triadic closure, selective isolation, latent ability) where the $J$-test flags the broken exclusion restriction; plus a micro-foundation and heterogeneous schools.
 
 \end{document}

@@ -1,8 +1,8 @@
 {
-  "F_peers_of_peers": 13178.425731061749,
+  "F_peers_of_peers": 13216.911035188923,
   "df_num": 3,
   "df_den": 24778,
-  "partial_R2": 0.6147296315569265,
-  "beta_used": 5.0,
+  "partial_R2": 0.6154200338007402,
+  "beta_used": 4.983579517744634,
   "strong": true
 }

@@ -2,8 +2,8 @@
   "project": "Project Replication Zenou",
   "settings": {
     "set_seed": 1234,
-    "set_stu_perschool": 60,
-    "set_n_schools": 6,
+    "set_stu_perschool": 200,
+    "set_n_schools": 150,
     "set_max_friends": 5,
     "set_p_isolated": 0.2,
     "set_gamma": [

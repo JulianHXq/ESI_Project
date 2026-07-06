@@ -751,3 +751,166 @@ def ext_load_environment(input_dir=EXT_DATA_DIR):
     return df, raw_G_list, G_list, true_parameters
 
 
+
+
+# ============================================================
+# [v5-ext] REALISTIC-NETWORK SCENARIO (ADDITIVE -- nothing above is changed).
+# Adds three real-world features on top of the extended model, plus a latent
+# (unobserved) ability that drives homophily and enters the outcome:
+#   (a) HOMOPHILY        -- friends chosen preferentially among similar students
+#                           (on observed characteristics AND the latent ability);
+#   (b) TRIADIC CLOSURE  -- a share of friends drawn from friends-of-friends,
+#                           producing realistic clustering (closed triangles);
+#   (c) SELECTIVE ISOLATION -- P(isolated) depends on characteristics.
+# Setting homophily=triadic=iso_slope=0 recovers a random network. Use
+# ext_network_diagnostics() to confirm the features are present, and estimate on
+# the result to measure their effect (the plain ext_build_environment is intact).
+# ============================================================
+EXT_SIGMA_ABILITY = 0.25   # [v5-ext] latent unobserved ability (drives homophily + outcome)
+EXT_HOMOPHILY     = 2.5    # [v5-ext] strength of similarity-based friend choice (0 = uniform)
+EXT_TRIADIC       = 0.5    # [v5-ext] fraction of friends via triadic closure (0 = none)
+EXT_ISO_SLOPE     = 0.9    # [v5-ext] dependence of isolation on characteristics (0 = random)
+EXT_KAPPA_ABILITY = 0.35   # [v5-ext] loading of latent ability on the outcome
+
+
+def _ext_realistic_network(sim_feat, iso_z, max_friends, p_isolated, rng,
+                           homophily=EXT_HOMOPHILY, triadic=EXT_TRIADIC, iso_slope=EXT_ISO_SLOPE):
+    """[v5-ext] One school's network with homophily + triadic closure + selective isolation.
+    sim_feat: standardized features driving friend similarity; iso_z: index driving isolation."""
+    n = sim_feat.shape[0]
+    base = np.log(p_isolated / (1.0 - p_isolated))
+    p_iso = 1.0 / (1.0 + np.exp(-(base + iso_slope * iso_z)))     # (c) selective isolation
+    isolated = rng.random(n) < p_iso
+    active = np.where(~isolated)[0]
+    adj = [set() for _ in range(n)]
+    rows, cols = [], []
+
+    def weights(i, cand):                                          # (a) homophily
+        d = np.sqrt(((sim_feat[cand] - sim_feat[i]) ** 2).sum(1))
+        w = np.exp(-homophily * d); tot = w.sum()
+        return (w / tot) if tot > 0 else np.full(len(cand), 1.0 / len(cand))
+
+    ndeg = {int(i): int(rng.integers(1, max_friends + 1)) for i in active}
+    for i in active:                                              # round 1: similarity from whole school
+        k1 = max(1, int(round((1.0 - triadic) * ndeg[i])))
+        cand = active[active != i]
+        if len(cand) == 0:
+            continue
+        pick = rng.choice(cand, size=min(k1, len(cand)), replace=False, p=weights(i, cand))
+        for j in pick:
+            rows.append(int(i)); cols.append(int(j)); adj[i].add(int(j))
+    for i in active:                                             # round 2: (b) triadic closure
+        need = ndeg[i] - len(adj[i])
+        if need <= 0:
+            continue
+        fof = set()
+        for j in adj[i]:
+            fof |= adj[j]
+        fof -= adj[i]; fof.discard(int(i))
+        pool = np.array([j for j in fof if not isolated[j]], dtype=int)
+        if len(pool) == 0:
+            pool = np.array([c for c in active if c != i and c not in adj[i]], dtype=int)
+        if len(pool) == 0:
+            continue
+        pick = rng.choice(pool, size=min(need, len(pool)), replace=False, p=weights(i, pool))
+        for j in pick:
+            rows.append(int(i)); cols.append(int(j)); adj[i].add(int(j))
+
+    raw_G = (sparse.csr_matrix((np.ones(len(rows)), (rows, cols)), shape=(n, n))
+             if rows else sparse.csr_matrix((n, n)))
+    rs = np.asarray(raw_G.sum(1)).ravel()
+    inv = np.zeros_like(rs, float); inv[rs > 0] = 1.0 / rs[rs > 0]
+    G = (sparse.diags(inv) @ raw_G).tocsr()
+    return raw_G, G
+
+
+def _ext_gpa_realistic(df, G_list, ability, gamma=None, phi=None, lambda_true=EXT_LAMBDA_TRUE,
+                       beta_true=EXT_BETA_TRUE, intercept=EXT_BASELINE, kappa=EXT_KAPPA_ABILITY,
+                       sigma_school=EXT_SIGMA_SCHOOL, sigma_epsilon=EXT_SIGMA_EPSILON, seed=EXT_SEED):
+    """[v5-ext] Outcome as in ext_generate_gpa_from_model, PLUS a latent-ability loading kappa*a
+    in the private component (a is unobserved, so it lives in the estimator's error)."""
+    gamma = EXT_GAMMA if gamma is None else gamma
+    phi = EXT_PHI if phi is None else phi
+    rng = np.random.default_rng(seed)
+    df = df.copy(); X_all = df[X_COLS].to_numpy(float)
+    y_all = np.empty(len(df)); p_all = np.empty(len(df))
+    school_eff = rng.normal(0.0, sigma_school, size=len(G_list))
+    n_clip = 0; start = 0
+    for s, G in enumerate(G_list):
+        n = G.shape[0]; sl = slice(start, start + n); X = X_all[sl]; a = ability[sl]
+        isolated = np.asarray(G.sum(1)).ravel() == 0
+        pmean = intercept + X @ gamma + kappa * a + school_eff[s]
+        p, _ = _ext_draw_private_in_range(pmean, sigma_epsilon, rng, 1.0, 3.6)
+        contextual = peer_average(G, X) @ phi
+        y = p.copy()
+        for _ in range(2000):
+            S = ces_norm(G, y, beta_true, isolated)
+            y_new = p + contextual + lambda_true * S; y_new[isolated] = p[isolated]
+            if np.max(np.abs(y_new - y)) < 1e-10:
+                y = y_new; break
+            y = y_new
+        n_clip += int(np.sum((y < 1.0) | (y > 4.0))); y = np.clip(y, 1.0, 4.0)
+        y_all[sl] = y; p_all[sl] = p; start += n
+    df["gpa"] = y_all; df["private_component"] = p_all
+    tp = {"gamma_age": gamma[0], "gamma_female": gamma[1], "gamma_f_col": gamma[2],
+          "phi_age": phi[0], "phi_female": phi[1], "phi_f_col": phi[2],
+          "lambda": lambda_true, "beta": beta_true, "kappa_ability": kappa,
+          "n_gpa_clipped": int(n_clip), "share_gpa_clipped": n_clip / len(df)}
+    return df, tp
+
+
+def ext_build_environment_realistic(seed=EXT_SEED, homophily=EXT_HOMOPHILY,
+                                    triadic=EXT_TRIADIC, iso_slope=EXT_ISO_SLOPE):
+    """[v5-ext] Extended DGP with REALISTIC networks. Same return tuple as ext_build_environment,
+    so every estimator/figure works unchanged. The plain ext_build_environment is untouched."""
+    sizes = ext_generate_school_sizes(EXT_N_SCHOOLS, seed)
+    df = ext_generate_students_and_covariates(sizes, seed=seed + 2)
+    rng = np.random.default_rng(seed + 5)
+    ability = rng.normal(0.0, EXT_SIGMA_ABILITY, size=len(df))
+    df["ability"] = ability                                       # latent; NOT in X_COLS
+    X_all = df[X_COLS].to_numpy(float)
+    raw_G_list, G_list = [], []; start = 0
+    for s, nsz in enumerate(sizes):
+        nsz = int(nsz); sl = slice(start, start + nsz)
+        Xb = X_all[sl]; Xs = (Xb - Xb.mean(0)) / (Xb.std(0) + 1e-9)
+        ab = ability[sl]; a_std = (ab - ab.mean()) / (ab.std() + 1e-9)
+        sim_feat = np.column_stack([Xs, a_std])                   # homophily on X + latent ability
+        iso_z = -Xs[:, 2]                                         # low parent-college -> more isolated
+        rgen = np.random.default_rng(seed + 1000 + s)
+        raw_G, G = _ext_realistic_network(sim_feat, iso_z, EXT_MAX_FRIENDS, EXT_P_ISOLATED, rgen,
+                                          homophily, triadic, iso_slope)
+        raw_G_list.append(raw_G); G_list.append(G); start += nsz
+    df, tp = _ext_gpa_realistic(df, G_list, ability, seed=seed + 3)
+    tp.update({"homophily": homophily, "triadic": triadic, "iso_slope": iso_slope,
+               "sigma_ability": EXT_SIGMA_ABILITY})
+    return df, raw_G_list, G_list, tp
+
+
+def ext_network_diagnostics(df, raw_G_list):
+    """[v5-ext] Confirm the realistic features: mean local clustering coefficient, friend
+    homophily (correlation of parent-college across edges), and isolation rate by parent-college."""
+    fcol = df["f_col"].to_numpy(float)
+    ccs = []; xi_all = []; xj_all = []; iso_flags = []; start = 0
+    for raw in raw_G_list:
+        n = raw.shape[0]
+        U = ((raw + raw.T) > 0).astype(float)
+        deg = np.asarray(U.sum(1)).ravel()
+        tri = np.asarray((U @ U @ U).diagonal()).ravel()
+        poss = deg * (deg - 1.0)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            cc = np.where(poss > 0, tri / poss, 0.0)
+        m = deg > 1
+        if m.any():
+            ccs.append(float(cc[m].mean()))
+        iso_flags.append(deg == 0)
+        coo = raw.tocoo()
+        xi_all.append(fcol[start + coo.row]); xj_all.append(fcol[start + coo.col])
+        start += n
+    iso = np.concatenate(iso_flags)
+    xi = np.concatenate(xi_all); xj = np.concatenate(xj_all)
+    homo = float(np.corrcoef(xi, xj)[0, 1]) if len(xi) > 2 else float("nan")
+    return {"mean_clustering": float(np.mean(ccs)),
+            "friend_homophily_fcol_corr": homo,
+            "isolated_rate_fcol0": float(iso[fcol == 0].mean()),
+            "isolated_rate_fcol1": float(iso[fcol == 1].mean()),
+            "overall_isolated_rate": float(iso.mean())}
