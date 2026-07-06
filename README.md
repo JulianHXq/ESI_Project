@@ -33,7 +33,7 @@ A robustness section then stresses the extension with realistic network features
 ```bash
 cd Code
 python run_all_v5.py      # the full study: baseline, extension, and robustness
-python run_assignment.py  # the extension only
+python run_extension.py  # the extension only
 python run_realistic.py   # the robustness stress test only
 ```
 
@@ -46,7 +46,7 @@ Requirements: numpy, pandas, scipy, matplotlib. The seeds are fixed, so the resu
   - `DGP_v5.py`: the data generating processes (baseline, contextual extension, and the realistic network variant).
   - `Estimation_v5.py`: the GMM estimators and every check (weak instruments, control and instrument sensitivity, Hansen J, Monte Carlo, cluster and network robust standard errors, higher order instruments).
   - `Figures_v5.py`, `SlideFigures_v5.py`, `teaching_steps_v5.py`: figures and a step by step walkthrough of the estimator.
-  - `run_all_v5.py`, `run_assignment.py`, `run_realistic.py`: one command drivers.
+  - `run_all_v5.py`, `run_extension.py`, `run_realistic.py`: one command drivers.
 - `Data/`, `Outputs/`, `Figures/`: generated artifacts.
 - `Notes/`: a written note with the derivations and results (PDF and LaTeX source).
 - `Guides/`: reference material.
