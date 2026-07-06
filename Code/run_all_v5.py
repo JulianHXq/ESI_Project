@@ -71,6 +71,22 @@ def run_extended():
     stab.to_csv(E.EXT_OUTPUT_DIR / "sensitivity.csv")
     with (E.EXT_OUTPUT_DIR / "weak_iv_test.json").open("w") as f:
         json.dump(Fstat, f, indent=2)
+    Jt = E.ext_overid_j_test(df, G_list)
+    nrse = E.ext_network_robust_se(df, G_list)
+    ho = E.ext_higher_order_relevance(df, G_list, beta=ec["beta"])
+    print("\nOveridentification (Hansen J): J=%.2f df=%d p=%.3f | reject 5%%: %s"
+          % (Jt["J"], Jt["df"], Jt["p_value"], Jt["reject_5pct"]))
+    print("Network-robust SE: lambda cluster=%.4f vs iid=%.4f | beta cluster=%.3f vs iid=%.3f"
+          % (nrse["lambda_se_cluster"], nrse["lambda_se_iid"], nrse["beta_se_cluster"], nrse["beta_se_iid"]))
+    print("Higher-order G^3x beyond G^2x: partial F=%.1f | partial R2=%.3f | adds: %s"
+          % (ho["F_G3x_beyond_G2x"], ho["partial_R2"], ho["adds_relevance"]))
+    print("Monte Carlo (8 draws, 100 schools):")
+    mc = E.ext_monte_carlo(n_reps=8, n_schools=100, seed0=1000)
+    print("  correct median (lambda,beta)=(%.3f,%.2f) vs true (%.2f,%.0f) | naive (%.3f,%.2f) | naive worse: %.0f%%"
+          % (mc["correct_lambda_median"], mc["correct_beta_median"], mc["true_lambda"], mc["true_beta"],
+             mc["naive_lambda_median"], mc["naive_beta_median"], 100*mc["naive_more_biased_share"]))
+    with (E.EXT_OUTPUT_DIR / "extensions.json").open("w") as f:
+        json.dump({"overid_j": Jt, "network_robust_se": nrse, "higher_order_G3x": ho, "monte_carlo": mc}, f, indent=2)
     ctx = E.ext_prepare_context(df, G_list)
     F.ext_fig_ego_network(raw_G_list); F.ext_fig_first_stage(ctx)
     F.ext_fig_objective_profiles(ctx); F.ext_fig_bias(table); F.ext_fig_sensitivity(stab)

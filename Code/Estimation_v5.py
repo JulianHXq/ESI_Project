@@ -1729,6 +1729,7 @@ def ext_prepare_context(df, G_list):
 
     Gx = peer_average(G, X)             # direct peers' characteristics (G x)
     G2x = peer_average(G, Gx)           # [v5-ext] peers-of-peers characteristics (G^2 x)
+    G3x = peer_average(G, G2x)          # [v5-ext] distance-3 (higher-order instruments)
 
     codes, schools = pd.factorize(school, sort=True)
     group = 2 * codes + isolated.astype(int)
@@ -1746,6 +1747,7 @@ def ext_prepare_context(df, G_list):
     return {"G": G, "isolated": isolated, "group": group, "codes": codes, "schools": schools,
             "y_level": y, "X": _group_demean(X, group), "Gx": _group_demean(Gx, group),
             "G2x": _group_demean(G2x, group),  # [v5-ext] peers-of-peers, demeaned
+            "G3x": _group_demean(G3x, group),  # [v5-ext] distance-3, demeaned
             "y": _group_demean(y, group),
             "yhat_correct": yhat_correct, "yhat_naive": yhat_naive,
             "log_yhat_correct": np.log(yhat_correct), "log_yhat_naive": np.log(yhat_naive),
@@ -1973,3 +1975,84 @@ def ext_sensitivity_table(df, G_list, true_parameters=None):
         table.loc["TRUE"] = [true_parameters["lambda"], true_parameters["beta"]]
     return table
 
+
+
+# ============================================================
+# [v5-ext] Further extended-model checks: overid J, Monte Carlo, network-robust SE,
+# higher-order (G^3x) instrument relevance. Public API prefixed ext_.
+# ============================================================
+
+def ext_overid_j_test(df, G_list):
+    """[v5-ext] Hansen overidentification J-test for the correct (peers-of-peers) estimator.
+    11 moments (3 isolated x + 8 connected x,Gx,Shat,Dhat), 8 params -> df=3; J ~ chi2(3)."""
+    from scipy.stats import chi2 as _c
+    ctx = ext_prepare_context(df, G_list); est, _ = ext_estimate(df, G_list, "correct")
+    beta = est["beta"]; k = ctx["X"].shape[1]; iso = ctx["isolated"]; non = ~iso
+    b = _blocks(beta, ctx, "correct")
+    gamma = np.array([est["gamma_age"], est["gamma_female"], est["gamma_f_col"]])
+    phi = np.array([est["phi_age"], est["phi_female"], est["phi_f_col"]])
+    eta = np.concatenate([gamma, phi, [est["lambda"]]])
+    eI = b["yI"] - b["XI"] @ gamma; eN = b["yN"] - b["DN"] @ eta
+    n = ctx["n"]; mI = b["XI"].shape[1]; mN = b["ZN"].shape[1]; M = mI + mN
+    contrib = np.zeros((n, M))
+    contrib[np.where(iso)[0], :mI] = b["XI"] * eI[:, None]
+    contrib[np.where(non)[0], mI:] = b["ZN"] * eN[:, None]
+    gbar = contrib.mean(0); Omega = contrib.T @ contrib / n
+    J = float(n * gbar @ np.linalg.pinv(Omega) @ gbar); dof = M - (2 * k + 2)
+    p = float(_c.sf(J, dof))
+    return {"J": J, "df": int(dof), "p_value": p, "beta_used": float(beta), "reject_5pct": bool(p < 0.05)}
+
+
+def ext_monte_carlo(n_reps=8, n_schools=100, seed0=1000):
+    """[v5-ext] Monte Carlo over independent draws of the extended DGP: correct unbiased vs naive biased."""
+    import DGP_v5 as D
+    old = D.EXT_N_SCHOOLS; D.EXT_N_SCHOOLS = n_schools; C = []; N = []
+    try:
+        for r in range(n_reps):
+            df, raw, Gl, true = D.ext_build_environment(seed=seed0 + r)
+            ec, _ = ext_estimate(df, Gl, "correct"); en, _ = ext_estimate(df, Gl, "naive")
+            C.append((ec["lambda"], ec["beta"])); N.append((en["lambda"], en["beta"]))
+    finally:
+        D.EXT_N_SCHOOLS = old
+    C = np.array(C); N = np.array(N); tl, tb = true["lambda"], true["beta"]
+    worse = np.abs(N[:, 0] - tl) > np.abs(C[:, 0] - tl)
+    return {"n_reps": n_reps, "n_schools": n_schools, "true_lambda": tl, "true_beta": tb,
+            "correct_lambda_median": float(np.median(C[:, 0])), "correct_beta_median": float(np.median(C[:, 1])),
+            "correct_lambda_mean": float(C[:, 0].mean()), "correct_beta_mean": float(C[:, 1].mean()),
+            "naive_lambda_median": float(np.median(N[:, 0])), "naive_beta_median": float(np.median(N[:, 1])),
+            "naive_more_biased_share": float(worse.mean())}
+
+
+def ext_network_robust_se(df, G_list):
+    """[v5-ext] Network-robust SE. Networks are block-diagonal by school (independent schools), so the
+    school-cluster SE sums every within-network score correlation and IS the network-robust variance;
+    reported next to the i.i.d. SE."""
+    ctx = ext_prepare_context(df, G_list)
+    WI, WN = _identity_W(ctx, "correct"); beta = _opt_beta(ctx, "correct", WI, WN)
+    b = _blocks(beta, ctx, "correct"); eta = _solve_eta(b, WI, WN)[0]
+    WI, WN = _optimal_weights(beta, ctx, "correct", eta); beta = _opt_beta(ctx, "correct", WI, WN)
+    b = _blocks(beta, ctx, "correct"); eta = _solve_eta(b, WI, WN)[0]
+    se_c = _cluster_se(beta, ctx, "correct", eta, WI, WN)
+    ci = dict(ctx); ci["codes"] = np.arange(ctx["n"]); ci["schools"] = np.arange(ctx["n"])
+    se_i = _cluster_se(beta, ci, "correct", eta, WI, WN)
+    return {"lambda_se_cluster": se_c["lambda"], "lambda_se_iid": se_i["lambda"],
+            "beta_se_cluster": se_c["beta"], "beta_se_iid": se_i["beta"]}
+
+
+def ext_higher_order_relevance(df, G_list, beta=None):
+    """[v5-ext] Do distance-3 characteristics (G^3x) add first-stage relevance beyond G^2x?
+    Partial F of G^3x for the endogenous norm, controlling for x, Gx, G^2x."""
+    ctx = ext_prepare_context(df, G_list)
+    if beta is None:
+        beta = ext_estimate(df, G_list, "correct")[0]["beta"]
+    iso = ctx["isolated"]; non = ~iso; grp = ctx["group"]
+    S = _group_demean(ces_norm(ctx["G"], ctx["y_level"], beta, iso), grp)[non]
+    X = ctx["X"][non]; Gx = ctx["Gx"][non]; G2x = ctx["G2x"][non]; G3x = ctx["G3x"][non]
+    def rss(Y, M):
+        bb, *_ = np.linalg.lstsq(M, Y, rcond=None); r = Y - M @ bb; return float(r @ r)
+    Cc = np.column_stack([X, Gx, G2x]); CZ = np.column_stack([X, Gx, G2x, G3x])
+    rss_r, rss_u = rss(S, Cc), rss(S, CZ)
+    q = G3x.shape[1]; n = len(S); pfull = CZ.shape[1]
+    F = ((rss_r - rss_u) / q) / (rss_u / (n - pfull))
+    return {"F_G3x_beyond_G2x": float(F), "df_num": q, "df_den": int(n - pfull),
+            "partial_R2": float((rss_r - rss_u) / rss_r), "adds_relevance": bool(F > 10)}
