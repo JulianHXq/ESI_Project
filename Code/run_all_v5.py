@@ -3,7 +3,7 @@ Unified runner for the complete v5 project -- ONE command runs EVERYTHING:
 
     python run_all_v5.py
 
-PART A -- BASELINE (Boucher, Rendall, Ushchev & Zenou 2024): the class model
+PART A -- BASELINE (Boucher, Rendall, Ushchev & Zenou 2024): the baseline model
           y = delta*p + lambda*S(beta), estimated by two-step GMM + CUE, with
           Anderson-Rubin, LIM, Hansen J and an instrument-set comparison.
           Direct-peer / intransitivity instruments are valid (no contextual effect).
@@ -14,7 +14,7 @@ PART B -- EXTENDED MODEL (contextual peer effects): adds a contextual term
           test and a 2x2 control/instrument sensitivity. All functions live in the
           v5 modules under the ext_ prefix.
 
-Bridge: PART B's "naive" mode IS PART A's class estimator -- the one that becomes
+Bridge: PART B's "naive" mode IS PART A's baseline estimator -- the one that becomes
 inconsistent once the contextual effect is present. Both parts share core.py.
 """
 
@@ -24,7 +24,7 @@ def _banner(t):
 
 
 def run_baseline():
-    _banner("PART A  --  BASELINE (Boucher et al. 2024): the class model")
+    _banner("PART A  --  BASELINE (Boucher et al. 2024): the baseline model")
     from DGP_v5 import (DATA_DIR, build_environment, save_environment,
                         summarize_environment)
     from Estimation_v5 import (OUTPUT_DIR, comparison_table, estimate_model_cue,
@@ -59,7 +59,7 @@ def run_extended():
     table.to_csv(E.EXT_OUTPUT_DIR / "estimator_comparison.csv")
     with (E.EXT_OUTPUT_DIR / "estimates.json").open("w") as f:
         json.dump({"correct": ec, "correct_se": sc, "naive": en, "naive_se": sn}, f, indent=2)
-    print("True vs NAIVE (class, inconsistent) vs CORRECT (extended model)\n")
+    print("True vs NAIVE (baseline, inconsistent) vs CORRECT (extended model)\n")
     print(table.round(4).to_string())
     Fstat = E.ext_first_stage_F(df, G_list, beta=ec["beta"])
     stab = E.ext_sensitivity_table(df, G_list, true)

@@ -574,7 +574,7 @@ def ext_fig_first_stage(ctx):
 def ext_fig_objective_profiles(ctx):
     betas = np.linspace(1.5, 12, 40)
     fig, ax = plt.subplots(1, 2, figsize=(11, 4.4))
-    for a, mode, ttl in ((ax[0], "correct", "Peers-of-Peers (Correct)"), (ax[1], "naive", "Naive (Class)")):
+    for a, mode, ttl in ((ax[0], "correct", "Peers-of-Peers (Correct)"), (ax[1], "naive", "Naive (Baseline)")):
         WI, WN = E._identity_W(ctx, mode)
         Q = [E._objective(bb, ctx, mode, WI, WN) for bb in betas]
         bmin = betas[int(np.argmin(Q))]
@@ -592,13 +592,13 @@ def ext_fig_bias(table):
     x = np.arange(len(params)); w = 0.26
     fig, a = plt.subplots(figsize=(7.2, 4.6))
     a.bar(x - w, table.loc[params, "true"], w, color=GRY, label="True")
-    a.bar(x, table.loc[params, "naive (class)"], w, color=RED, label="Naive (Class)")
+    a.bar(x, table.loc[params, "naive (baseline)"], w, color=RED, label="Naive (Baseline)")
     a.bar(x + w, table.loc[params, "correct"], w, color=BLU, label="Peer-of-Peers")
     a.set_xticks(x); a.set_xticklabels(lbl, fontsize=13); a.legend()
-    a.set_title("Bias of the Class Estimator vs Peer-of-Peers IV")
+    a.set_title("Bias of the Baseline Estimator vs Peer-of-Peers IV")
     a.set_ylabel("Estimate")
     for i, p in enumerate(params):
-        for off, col in ((-w, "true"), (0, "naive (class)"), (w, "correct")):
+        for off, col in ((-w, "true"), (0, "naive (baseline)"), (w, "correct")):
             v = table.loc[p, col]; a.text(i+off, v+0.03, f"{v:.2f}", ha="center", fontsize=8)
     fig.tight_layout(); fig.savefig(FIG_EXT / "fig4_bias_comparison.png"); plt.close(fig)
 

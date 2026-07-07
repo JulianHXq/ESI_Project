@@ -29,7 +29,7 @@
 \maketitle
 \vspace{-0.7cm}
 
-\noindent\textbf{Summary.} We relax the class exclusion restriction by letting \emph{direct peers' characteristics} affect a student's outcome directly. This makes direct-peer instruments invalid and the class estimator inconsistent. We identify the model instead with \emph{peers-of-peers} characteristics ($G^2x$) as excluded instruments, estimated by the same concentrated two-step GMM with the CES nonlinearity. On synthetic data with heterogeneous schools, the class estimator badly overstates the peer effect ($\widehat\lambda=0.92$ vs.\ true $0.30$, $\widehat\beta=1.97$ vs.\ $5.0$), while the peer-of-peers estimator recovers every parameter. A Hansen $J$-test, a Monte Carlo, network-robust SE and higher-order instruments corroborate the strategy.
+\noindent\textbf{Summary.} We relax the baseline exclusion restriction by letting \emph{direct peers' characteristics} affect a student's outcome directly. This makes direct-peer instruments invalid and the baseline estimator inconsistent. We identify the model instead with \emph{peers-of-peers} characteristics ($G^2x$) as excluded instruments, estimated by the same concentrated two-step GMM with the CES nonlinearity. On synthetic data with heterogeneous schools, the baseline estimator badly overstates the peer effect ($\widehat\lambda=0.92$ vs.\ true $0.30$, $\widehat\beta=1.97$ vs.\ $5.0$), while the peer-of-peers estimator recovers every parameter. A Hansen $J$-test, a Monte Carlo, network-robust SE and higher-order instruments corroborate the strategy.
 
 % ==================================================================
 \section{Model and the Exclusion Violation}
@@ -42,11 +42,11 @@ Let $y_i$ be GPA and $g_{ij}$ the (row-normalized) weight $i$ puts on peer $j$. 
 
 \textbf{Micro-Foundation.} Each student picks effort $y_i$ (the GPA) to maximize
 \[ U_i(y_i)=\big(\,x_i\T\gamma+(Gx)_i\T\phi+\varepsilon_i\big)\,y_i-\tfrac12 y_i^2+\lambda\,y_i\,\tilde y_i(\beta,y), \]
-a private return net of a quadratic effort cost, plus a complementarity with the peer norm. The private return is shifted by \emph{own and direct peers'} characteristics; the latter captures that peers' background or study environment raises $i$'s marginal return to effort. Taking peers' actions as given (Nash), the first-order condition $\partial U_i/\partial y_i=0$ yields exactly~\eqref{eq:model}. The equilibrium is the fixed point $y=X\gamma+\phi(Gx)+\lambda\,\tilde y(\beta,y)$, unique for $\lambda<1$ (a contraction), which is what the DGP solves. Setting $\phi=0$ recovers the class model, where $Gx$ is a valid excluded instrument; the twist here is $\phi\neq0$, which puts $Gx$ \emph{inside} $i$'s equation.
+a private return net of a quadratic effort cost, plus a complementarity with the peer norm. The private return is shifted by \emph{own and direct peers'} characteristics; the latter captures that peers' background or study environment raises $i$'s marginal return to effort. Taking peers' actions as given (Nash), the first-order condition $\partial U_i/\partial y_i=0$ yields exactly~\eqref{eq:model}. The equilibrium is the fixed point $y=X\gamma+\phi(Gx)+\lambda\,\tilde y(\beta,y)$, unique for $\lambda<1$ (a contraction), which is what the DGP solves. Setting $\phi=0$ recovers the baseline model, where $Gx$ is a valid excluded instrument; the twist here is $\phi\neq0$, which puts $Gx$ \emph{inside} $i$'s equation.
 
-\textbf{Item 1. Why the Class Estimator Is Inconsistent.} In class, $\tilde y_i$ was instrumented with functions of direct peers' characteristics $Gx$, valid because $Gx$ shifted peers' outcomes but was \emph{excluded} from $i$'s own equation. Once $\phi\neq0$, $Gx$ enters $i$'s equation directly. An estimator that (a) omits the term $(Gx)\T\phi$ and (b) uses $Gx$-based instruments therefore violates the exclusion restriction:
+\textbf{Item 1. Why the Baseline Estimator Is Inconsistent.} In the baseline, $\tilde y_i$ was instrumented with functions of direct peers' characteristics $Gx$, valid because $Gx$ shifted peers' outcomes but was \emph{excluded} from $i$'s own equation. Once $\phi\neq0$, $Gx$ enters $i$'s equation directly. An estimator that (a) omits the term $(Gx)\T\phi$ and (b) uses $Gx$-based instruments therefore violates the exclusion restriction:
 \begin{equation}
-\E[z_i\,\varepsilon_i^{\text{class}}]=\E\big[z_i\,(\varepsilon_i+(Gx)_i\T\phi)\big]\neq 0 ,
+\E[z_i\,\varepsilon_i^{\text{naive}}]=\E\big[z_i\,(\varepsilon_i+(Gx)_i\T\phi)\big]\neq 0 ,
 \end{equation}
 because $z_i$ is built from the same $Gx$ now sitting in the (composite) error. The direct-peer instrument is correlated with the omitted contextual term, so $\widehat\lambda$ and $\widehat\beta$ are inconsistent (Section~5 shows $\widehat\lambda$ inflated to $0.92$).
 
@@ -68,7 +68,7 @@ which holds if (i) only direct peers' characteristics enter $i$'s equation (no d
 \end{figure}
 % ==================================================================
 \section{Estimation Algorithm}
-We use the \emph{same} concentrated two-step GMM as in class, changing only the controls and the excluded instruments.
+We use the \emph{same} concentrated two-step GMM as in the baseline, changing only the controls and the excluded instruments.
 \begin{enumerate}[leftmargin=1.4em,itemsep=1pt,topsep=2pt]
 \item \textbf{Within Transform} by (school $\times$ isolation) to remove the intercept and school fixed effects.
 \item \textbf{First Stage / Instrument Construction.} Fit $\widehat y=$ OLS of $y$ on $[1,x,Gx,G^2x,\text{school dummies}]$. The key addition is $G^2x$. Build the predicted norm and its curvature instrument
@@ -82,19 +82,19 @@ Because $x$ and $Gx$ are controls in the structural equation, the \emph{excluded
 \item \textbf{Concentration + Search.} Given $\beta$, the residual is linear in $(\gamma,\phi,\lambda)$, solved analytically; we then minimize the GMM objective over the single nonlinear parameter $\beta$ (grid $+$ bounded search).
 \item \textbf{Two-Step and SE.} Identity weights first, then the optimal weight $\widehat W=\widehat\Omega^{-1}$, and school-cluster-robust standard errors (sandwich with the $G/(G-1)$ correction).
 \end{enumerate}
-The \textbf{naive (class) estimator} we compare against omits the $(Gx)\T\phi$ control and builds $\widehat S,\widehat D$ from a first stage on own covariates only $[1,x,\text{dummies}]$, so its instruments carry direct-peer ($Gx$) variation, which is invalid here.
+The \textbf{naive (baseline) estimator} we compare against omits the $(Gx)\T\phi$ control and builds $\widehat S,\widehat D$ from a first stage on own covariates only $[1,x,\text{dummies}]$, so its instruments carry direct-peer ($Gx$) variation, which is invalid here.
 
 % ==================================================================
 \section{Data}
-The synthetic environment matches the class DGP with two realistic changes. \textbf{(i) Heterogeneous Schools:} each of the 150 schools draws its own size in $[80,320]$ ($30{,}261$ students, mean size $202$, $18\%$ isolated). \textbf{(ii) Contextual Effect:} direct peers' characteristics enter the outcome with $\phi=(0,0.15,0.30)$ on (age, female, parent-college). Realized GPA is generated from the fixed point $y=p+(Gx)\phi+\lambda S(y,\beta)$ and capped to $[1,4]$ ($<0.01\%$ clipped). True values: $\gamma=(0.10,0.24,0.40)$, $\lambda=0.30$, $\beta=5$.
+The synthetic environment matches the baseline DGP with two realistic changes. \textbf{(i) Heterogeneous Schools:} each of the 150 schools draws its own size in $[80,320]$ ($30{,}261$ students, mean size $202$, $18\%$ isolated). \textbf{(ii) Contextual Effect:} direct peers' characteristics enter the outcome with $\phi=(0,0.15,0.30)$ on (age, female, parent-college). Realized GPA is generated from the fixed point $y=p+(Gx)\phi+\lambda S(y,\beta)$ and capped to $[1,4]$ ($<0.01\%$ clipped). True values: $\gamma=(0.10,0.24,0.40)$, $\lambda=0.30$, $\beta=5$.
 
 % ==================================================================
 \section{Results}
 \begin{table}[h]\centering\small
-\caption{True vs.\ naive (class, inconsistent) vs.\ peer-of-peers (correct). Cluster-robust SE for the correct estimator in brackets.}
+\caption{True vs.\ naive (baseline, inconsistent) vs.\ peer-of-peers (correct). Cluster-robust SE for the correct estimator in brackets.}
 \begin{tabular}{lrrr}
 \toprule
-Parameter & True & Naive (class) & Peer-of-peers \\
+Parameter & True & Naive (baseline) & Peer-of-peers \\
 \midrule
 $\gamma_{\text{age}}$    & 0.10 & 0.089 & 0.089\,[0.001] \\
 $\gamma_{\text{female}}$ & 0.24 & 0.214 & 0.215\,[0.003] \\
@@ -107,12 +107,12 @@ $\beta$ (CES curvature)  & 5.00 & \textbf{1.97} & \textbf{4.98}\,[0.248] \\
 \end{tabular}
 \end{table}
 
-The class estimator triples the peer effect ($0.92$ vs.\ $0.30$) and badly misses the curvature ($1.97$ vs.\ $5$), because the omitted contextual term loads onto the (invalid) direct-peer instruments. The peer-of-peers estimator recovers every parameter, including the contextual coefficients $\phi$.
+The baseline estimator triples the peer effect ($0.92$ vs.\ $0.30$) and badly misses the curvature ($1.97$ vs.\ $5$), because the omitted contextual term loads onto the (invalid) direct-peer instruments. The peer-of-peers estimator recovers every parameter, including the contextual coefficients $\phi$.
 
 \begin{figure}[h]\centering
 \includegraphics[width=0.52\linewidth]{fig4_bias_comparison.png}\\[6pt]
 \includegraphics[width=0.88\linewidth]{fig3_objective_profiles.png}
-\caption{Top: bias of the class estimator vs.\ the peer-of-peers IV for $\lambda$ and $\beta$. Bottom: GMM objective profiles: the correct estimator's minimum sits at the true $\beta=5$, the naive one at $\approx2$.}
+\caption{Top: bias of the baseline estimator vs.\ the peer-of-peers IV for $\lambda$ and $\beta$. Bottom: GMM objective profiles: the correct estimator's minimum sits at the true $\beta=5$, the naive one at $\approx2$.}
 \end{figure}
 
 % ==================================================================
@@ -153,10 +153,10 @@ The two ingredients play different roles: $G^2x$ identifies the curvature (both 
 \end{figure}
 
 \section{Code Modifications and Reproducibility}
-The extended model lives inside the class (v5) codebase; all changes are marked in-line with \texttt{[v5-ext]} comments and the extended functions carry the \texttt{ext\_} prefix.
+The extended model lives inside the baseline (v5) codebase; all changes are marked in-line with \texttt{[v5-ext]} comments and the extended functions carry the \texttt{ext\_} prefix.
 \begin{itemize}[leftmargin=1.4em,itemsep=1pt,topsep=2pt]
 \item \texttt{Code/DGP\_v5.py}: \texttt{[v5-ext]} \texttt{ext\_build\_environment} (heterogeneous schools $+$ contextual $\phi'(Gx)$); \texttt{ext\_build\_environment\_realistic} $+$ \texttt{ext\_network\_diagnostics} (homophily, triadic closure, selective isolation, latent ability).
-\item \texttt{Code/Estimation\_v5.py}: \texttt{[v5-ext]} \texttt{ext\_estimate} ($Gx$ control, first stage on $[x,Gx,G^2x]$, instruments $Z=(x,Gx,\widehat S,\widehat D)$; mode \texttt{naive} is the class estimator), \texttt{ext\_first\_stage\_F}, \texttt{ext\_sensitivity\_table}, \texttt{ext\_overid\_j\_test}, \texttt{ext\_monte\_carlo}, \texttt{ext\_network\_robust\_se}, \texttt{ext\_higher\_order\_relevance}; the shared CES kernel is \texttt{Code/core.py}.
+\item \texttt{Code/Estimation\_v5.py}: \texttt{[v5-ext]} \texttt{ext\_estimate} ($Gx$ control, first stage on $[x,Gx,G^2x]$, instruments $Z=(x,Gx,\widehat S,\widehat D)$; mode \texttt{naive} is the baseline estimator), \texttt{ext\_first\_stage\_F}, \texttt{ext\_sensitivity\_table}, \texttt{ext\_overid\_j\_test}, \texttt{ext\_monte\_carlo}, \texttt{ext\_network\_robust\_se}, \texttt{ext\_higher\_order\_relevance}; the shared CES kernel is \texttt{Code/core.py}.
 \item \texttt{Code/Figures\_v5.py} (\texttt{ext\_fig\_*}) and \texttt{Code/run\_all\_v5.py} / \texttt{run\_extension.py} / \texttt{run\_realistic.py}: figures and one-command drivers.
 \end{itemize}
 \textbf{Reproduce} from the repository with \texttt{cd Code \&\& python run\_extension.py} (extended model only) or \texttt{python run\_all\_v5.py} (baseline $+$ extended $+$ realistic stress test): it runs the estimators, prints and saves the comparison table plus every extension above to \texttt{Outputs/v5/}, and writes the figures to \texttt{Figures/v5/}.

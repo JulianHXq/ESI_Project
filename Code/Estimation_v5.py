@@ -1694,7 +1694,7 @@ def format_instrument_comparison(table, true_beta=10.0):  # [v5]
 # ============================================================
 # [v5-ext] EXTENDED-MODEL ESTIMATOR: contextual control (Gx) + peers-of-peers
 # (G^2x) IV, with modes correct/naive/control_only/instr_only, weak-IV F and a
-# 2x2 sensitivity. Public API prefixed ext_ ; the class estimator is mode "naive".
+# 2x2 sensitivity. Public API prefixed ext_ ; the baseline estimator is mode "naive".
 # ============================================================
 EXT_OUTPUT_DIR = PROJECT_ROOT / "Outputs" / "v5"
 
@@ -1739,7 +1739,7 @@ def ext_prepare_context(df, G_list):
     ones = np.ones((len(df), 1))
     # [v5-ext] correct first stage includes G^2x (the excluded peer-of-peers instrument)
     yhat_correct = _first_stage(y, np.column_stack([ones, X, Gx, G2x, dummies]))
-    # [NAIVE] class first stage: own covariates only -> instruments carry direct-peer (Gx) variation
+    # [NAIVE] baseline first stage: own covariates only -> instruments carry direct-peer (Gx) variation
     yhat_naive = _first_stage(y, np.column_stack([ones, X, dummies]))
     for nm, yh in (("correct", yhat_correct), ("naive", yhat_naive)):
         if np.any(yh <= 0):
@@ -1840,7 +1840,7 @@ def _eta_to_params(eta, mode, k):
 
 
 def ext_estimate(df, G_list, mode="correct"):
-    """Concentrated two-step GMM. mode='correct' (correct) or 'naive' (class)."""
+    """Concentrated two-step GMM. mode='correct' (correct) or 'naive' (baseline)."""
     ctx = ext_prepare_context(df, G_list)
     k = ctx["X"].shape[1]
     WI, WN = _identity_W(ctx, mode)
@@ -1917,14 +1917,14 @@ def _cluster_se(beta, ctx, mode, eta, WI, WN):
 
 
 def ext_compare_estimators(df, G_list, true_parameters=None):
-    """Run NAIVE (class) and CORRECT (extended model) and tabulate against the truth."""
+    """Run NAIVE (baseline) and CORRECT (extended model) and tabulate against the truth."""
     est_correct, se_correct = ext_estimate(df, G_list, mode="correct")
     est_nv, se_nv = ext_estimate(df, G_list, mode="naive")
     rowsel = ["gamma_age","gamma_female","gamma_f_col","phi_age","phi_female","phi_f_col","lambda","beta"]
     cols = {}
     if true_parameters is not None:
         cols["true"] = pd.Series({k: true_parameters.get(k, np.nan) for k in rowsel})
-    cols["naive (class)"] = pd.Series({k: est_nv.get(k, np.nan) for k in rowsel})
+    cols["naive (baseline)"] = pd.Series({k: est_nv.get(k, np.nan) for k in rowsel})
     cols["correct"] = pd.Series({k: est_correct.get(k, np.nan) for k in rowsel})
     table = pd.concat(cols, axis=1).reindex(rowsel)
     return table, (est_correct, se_correct), (est_nv, se_nv)
