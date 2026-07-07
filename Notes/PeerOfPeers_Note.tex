@@ -22,7 +22,7 @@
 \renewcommand{\_}{\textunderscore\allowbreak}
 \setlength{\emergencystretch}{3em}
 \title{\vspace{-1.4cm}\sffamily\bfseries\color{ink} Estimating Social Interactions with Peer-of-Peers Instruments\\[2pt]
-\large A solution to the assignment (Campa \& De Giorgi, Uniandes 2026)}
+\large A replication and extension of Boucher, Rendall, Ushchev \& Zenou (2024)}
 \author{Juan Valderrama \and Mateo Gil \and Julian Herrera}
 \date{June 2026}
 \begin{document}
@@ -42,7 +42,7 @@ Let $y_i$ be GPA and $g_{ij}$ the (row-normalized) weight $i$ puts on peer $j$. 
 
 \textbf{Micro-Foundation.} Each student picks effort $y_i$ (the GPA) to maximize
 \[ U_i(y_i)=\big(\,x_i\T\gamma+(Gx)_i\T\phi+\varepsilon_i\big)\,y_i-\tfrac12 y_i^2+\lambda\,y_i\,\tilde y_i(\beta,y), \]
-a private return net of a quadratic effort cost, plus a complementarity with the peer norm. The private return is shifted by \emph{own and direct peers'} characteristics; the latter captures that peers' background or study environment raises $i$'s marginal return to effort. Taking peers' actions as given (Nash), the first-order condition $\partial U_i/\partial y_i=0$ yields exactly~\eqref{eq:model}. The equilibrium is the fixed point $y=X\gamma+\phi(Gx)+\lambda\,\tilde y(\beta,y)$, unique for $\lambda<1$ (a contraction), which is what the DGP solves. Setting $\phi=0$ recovers the class model, where $Gx$ is a valid excluded instrument; the assignment's twist is $\phi\neq0$, which puts $Gx$ \emph{inside} $i$'s equation.
+a private return net of a quadratic effort cost, plus a complementarity with the peer norm. The private return is shifted by \emph{own and direct peers'} characteristics; the latter captures that peers' background or study environment raises $i$'s marginal return to effort. Taking peers' actions as given (Nash), the first-order condition $\partial U_i/\partial y_i=0$ yields exactly~\eqref{eq:model}. The equilibrium is the fixed point $y=X\gamma+\phi(Gx)+\lambda\,\tilde y(\beta,y)$, unique for $\lambda<1$ (a contraction), which is what the DGP solves. Setting $\phi=0$ recovers the class model, where $Gx$ is a valid excluded instrument; the twist here is $\phi\neq0$, which puts $Gx$ \emph{inside} $i$'s equation.
 
 \textbf{Item 1. Why the Class Estimator Is Inconsistent.} In class, $\tilde y_i$ was instrumented with functions of direct peers' characteristics $Gx$, valid because $Gx$ shifted peers' outcomes but was \emph{excluded} from $i$'s own equation. Once $\phi\neq0$, $Gx$ enters $i$'s equation directly. An estimator that (a) omits the term $(Gx)\T\phi$ and (b) uses $Gx$-based instruments therefore violates the exclusion restriction:
 \begin{equation}
@@ -98,7 +98,7 @@ Parameter & True & Naive (class) & Peer-of-peers \\
 \midrule
 $\gamma_{\text{age}}$    & 0.10 & 0.089 & 0.089\,[0.001] \\
 $\gamma_{\text{female}}$ & 0.24 & 0.214 & 0.215\,[0.003] \\
-$\gamma_{\text{parent coll.}}$ & 0.40 & 0.374 & 0.375\,[0.004] \\
+$\gamma_{\text{parent coll.}}$ & 0.40 & 0.374 & 0.375\,[0.003] \\
 $\phi_{\text{female}}$   & 0.15 & (omitted) & 0.150\,[0.004] \\
 $\phi_{\text{parent coll.}}$ & 0.30 & (omitted) & 0.303\,[0.005] \\
 $\lambda$ (peer effect)  & 0.30 & \textbf{0.924} & \textbf{0.298}\,[0.005] \\
