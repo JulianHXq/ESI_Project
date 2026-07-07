@@ -29,7 +29,7 @@
 \maketitle
 \vspace{-0.7cm}
 
-\noindent\textbf{Summary.} We relax the baseline exclusion restriction by letting \emph{direct peers' characteristics} affect a student's outcome directly. This makes direct-peer instruments invalid and the baseline estimator inconsistent. We identify the model instead with \emph{peers-of-peers} characteristics ($G^2x$) as excluded instruments, estimated by the same concentrated two-step GMM with the CES nonlinearity. On synthetic data with heterogeneous schools, the baseline estimator badly overstates the peer effect ($\widehat\lambda=0.92$ vs.\ true $0.30$, $\widehat\beta=1.97$ vs.\ $5.0$), while the peer-of-peers estimator recovers every parameter. A Hansen $J$-test, a Monte Carlo, network-robust SE and higher-order instruments corroborate the strategy.
+\noindent\textbf{Summary.} We relax the baseline exclusion restriction by letting \emph{direct peers' characteristics} affect a student's outcome directly. This makes direct-peer instruments invalid and the baseline estimator inconsistent. We identify the model instead with \emph{peers-of-peers} characteristics ($G^2x$) as excluded instruments, estimated by the same concentrated two-step GMM with the CES nonlinearity. On synthetic data with heterogeneous schools, the baseline estimator badly overstates the peer effect ($\widehat\lambda=0.92$ vs.\ true $0.30$, $\widehat\beta=1.97$ vs.\ $5.0$), while the peer-of-peers estimator recovers $\lambda$, $\beta$ and the contextual $\phi$. A Hansen $J$-test, a Monte Carlo, network-robust SE and higher-order instruments corroborate the strategy.
 
 % ==================================================================
 \section{Model and the Exclusion Violation}
@@ -107,7 +107,7 @@ $\beta$ (CES curvature)  & 5.00 & \textbf{1.97} & \textbf{4.98}\,[0.248] \\
 \end{tabular}
 \end{table}
 
-The baseline estimator triples the peer effect ($0.92$ vs.\ $0.30$) and badly misses the curvature ($1.97$ vs.\ $5$), because the omitted contextual term loads onto the (invalid) direct-peer instruments. The peer-of-peers estimator recovers every parameter, including the contextual coefficients $\phi$.
+The baseline estimator triples the peer effect ($0.92$ vs.\ $0.30$) and badly misses the curvature ($1.97$ vs.\ $5$), because the omitted contextual term loads onto the (invalid) direct-peer instruments. The peer-of-peers estimator recovers $\lambda$, $\beta$ and the contextual $\phi$; the own-characteristic $\gamma$'s keep a small bias, shared by the naive column, from the bounded-outcome DGP.
 
 \begin{figure}[h]\centering
 \includegraphics[width=0.52\linewidth]{fig4_bias_comparison.png}\\[6pt]

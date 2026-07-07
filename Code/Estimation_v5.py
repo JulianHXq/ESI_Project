@@ -1847,7 +1847,7 @@ def ext_estimate(df, G_list, mode="correct"):
     # step 1
     beta = _opt_beta(ctx, mode, WI, WN)
     b = _blocks(beta, ctx, mode); eta, g, _, _ = _solve_eta(b, WI, WN)
-    # optimal weights from step-1 residuals (clustered)
+    # optimal GMM weight from step-1 residuals (moment outer product); SE is school-clustered below
     WI, WN = _optimal_weights(beta, ctx, mode, eta)
     beta = _opt_beta(ctx, mode, WI, WN)
     b = _blocks(beta, ctx, mode); eta, g, _, _ = _solve_eta(b, WI, WN)
