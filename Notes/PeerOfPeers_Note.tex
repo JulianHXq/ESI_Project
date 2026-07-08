@@ -68,7 +68,7 @@ which holds if (i) only direct peers' characteristics enter $i$'s equation (no d
 \end{figure}
 % ==================================================================
 \section{Estimation Algorithm}
-We use the \emph{same} concentrated two-step GMM as in the baseline, changing only the controls and the excluded instruments.
+\textbf{Item 5.} We use the \emph{same} concentrated two-step GMM as in the baseline, changing only the controls and the excluded instruments.
 \begin{enumerate}[leftmargin=1.4em,itemsep=1pt,topsep=2pt]
 \item \textbf{Within Transform} by (school $\times$ isolation) to remove the intercept and school fixed effects.
 \item \textbf{First Stage / Instrument Construction.} Fit $\widehat y=$ OLS of $y$ on $[1,x,Gx,G^2x,\text{school dummies}]$. The key addition is $G^2x$. Build the predicted norm and its curvature instrument
@@ -107,7 +107,7 @@ $\beta$ (CES curvature)  & 5.00 & \textbf{1.97} & \textbf{4.98}\,[0.248] \\
 \end{tabular}
 \end{table}
 
-The baseline estimator triples the peer effect ($0.92$ vs.\ $0.30$) and badly misses the curvature ($1.97$ vs.\ $5$), because the omitted contextual term loads onto the (invalid) direct-peer instruments. The peer-of-peers estimator recovers $\lambda$, $\beta$ and the contextual $\phi$; the own-characteristic $\gamma$'s keep a small bias, shared by the naive column, from the bounded-outcome DGP.
+\textbf{Item 6.} The baseline estimator triples the peer effect ($0.92$ vs.\ $0.30$) and badly misses the curvature ($1.97$ vs.\ $5$), because the omitted contextual term loads onto the (invalid) direct-peer instruments. The peer-of-peers estimator recovers $\lambda$, $\beta$ and the contextual $\phi$; the own-characteristic $\gamma$'s keep a small bias, shared by the naive column, from the bounded-outcome DGP.
 
 \begin{figure}[h]\centering
 \includegraphics[width=0.52\linewidth]{fig4_bias_comparison.png}\\[6pt]
